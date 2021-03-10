@@ -3,6 +3,9 @@ import torch
 
 
 class Variational(nn.Module):
+    """A Variational module, that keeps track of it's running KL loss.
+    """
+
     def __init__(self):
         super(Variational, self).__init__()
 
@@ -15,4 +18,6 @@ class Variational(nn.Module):
         return fwd
 
     def _forward(self, *args, **kwargs):
+        """The base forward method for variational objects, returning a tuple of actual forward op and kl loss
+        """
         raise NotImplementedError()

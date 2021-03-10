@@ -1,6 +1,6 @@
 import attr
 
-from lantern.model.loss import Term
+from lantern.loss import Term
 from lantern.model import Variational
 
 
@@ -12,7 +12,8 @@ class KL(Term):
 
     name: str = attr.ib()
     component: Variational = attr.ib(repr=False)
+    N: int = attr.ib(repr=False)
 
     def loss(self, *args, **kwargs):
 
-        return {self.name: self.component._kl}
+        return {self.name: self.component._kl / self.N}

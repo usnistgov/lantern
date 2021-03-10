@@ -72,6 +72,14 @@ class _Base(TensorDataset):
         # tensor dataset construction
         super(Dataset, self).__init__(*tensors)
 
+    @property
+    def D(self):
+        return len(self.phenotypes)
+
+    @property
+    def p(self):
+        return self.tokenizer.p
+
 
 @attr.s()
 class _DataframeDataset:
@@ -102,47 +110,3 @@ class CsvDataset(_Csv, _Base):
     def __attrs_post_init__(self):
         self.df = pd.read_csv(self.pth)
         super(CsvDataset, self).__attrs_post_init__()
-
-
-# def build(
-#     df: pd.DataFrame,
-#     substitutions: str = "substitutions",
-#     phenotypes: List[str] = ["phenotype"],
-#     errors: Optional[List[str]] = None,
-#     tokenizer: Tokenizer = None,
-#     **kwargs,
-# ):
-#     """Make a tensor dataset of the provided dataframe."""
-#
-#     substitutions = df[substitutions].replace(np.nan, "")
-#     phenotypes = df[phenotypes]
-#     if errors is not None:
-#         errors = df[errors]
-#     else:
-#         errors = None
-#
-#     if tokenizer is None:
-#         tokenizer = Tokenizer.initialize(substitutions, **kwargs)
-#
-#     # build tensors
-#     N = len(df)
-#
-#     X = torch.zeros(N, tokenizer.p)
-#     y = torch.zeros(N, len(phenotypes))
-#     if errors is not None:
-#         n = torch.zeros(N, len(errors))
-#
-#     for n in range(N):
-#
-#         X[n, :] = tokenizer.tokenize(substitutions.iloc[n])
-#         y[n, :] = torch.from_numpy(phenotypes.iloc[n, :].values)
-#
-#         if errors is not None:
-#             n[n, :] = torch.from_numpy(errors.iloc[n, :].values)
-#
-#     tensors = [X, y]
-#     if errors is not None:
-#         tensors.append(n)
-#
-#     # tensor dataset construction
-#     return TensorDataset(*tensors)

@@ -11,6 +11,12 @@ class Term(nn.Module):
     def loss(self, yhat, y, noise, *args, **kwargs) -> dict:
         raise NotImplementedError()
 
+    def __add__(self, other):
+        if isinstance(other, Loss):
+            return Loss([self] + other.losses)
+        elif isinstance(other, Term):
+            return Loss([self] + [other])
+
 
 @attr.s
 class Loss:
@@ -30,3 +36,9 @@ class Loss:
         # lss["total"] = sum(lss.values())
 
         return lss
+
+    def __add__(self, other):
+        if isinstance(other, Loss):
+            return Loss(self.losses + other.losses)
+        elif isinstance(other, Term):
+            return Loss(self.losses + [other])
