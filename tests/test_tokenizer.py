@@ -1,21 +1,7 @@
-import pandas as pd
 import pytest
 import torch
 
-from lantern.dataset import CsvDataset, Dataset, Tokenizer
-
-
-@pytest.fixture(scope="session")
-def multiple_phenotype_csv_file(tmpdir_factory):
-
-    df = pd.DataFrame(
-        {"substitutions": ["a1", ""], "p1": [], "p2": [], "e1": [], "e2": [],}
-    )
-
-    dataframe = pd.DataFrame({"even": even}, index=index)
-    filename = str(tmpdir_factory.mktemp("data").join("data.csv"))
-    dataframe.to_csv(filename)
-    return filename
+from lantern.dataset import Tokenizer
 
 
 def test_base_tokenizer():
