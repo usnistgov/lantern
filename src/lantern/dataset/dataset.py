@@ -55,22 +55,22 @@ class _Base(TensorDataset):
         X = torch.zeros(N, self.tokenizer.p)
         y = torch.zeros(N, len(self.phenotypes))
         if errors is not None:
-            n = torch.zeros(N, self.len(self.errors))
+            n = torch.zeros(N, len(self.errors))
 
-        for n in range(N):
+        for i in range(N):
 
-            X[n, :] = self.tokenizer.tokenize(substitutions.iloc[n])
-            y[n, :] = torch.from_numpy(phenotypes.iloc[n, :].values)
+            X[i, :] = self.tokenizer.tokenize(substitutions.iloc[i])
+            y[i, :] = torch.from_numpy(phenotypes.iloc[i, :].values)
 
             if errors is not None:
-                n[n, :] = torch.from_numpy(errors.iloc[n, :].values)
+                n[i, :] = torch.from_numpy(errors.iloc[i, :].values)
 
         tensors = [X, y]
         if errors is not None:
             tensors.append(n)
 
         # tensor dataset construction
-        super(Dataset, self).__init__(*tensors)
+        super(_Base, self).__init__(*tensors)
 
     @property
     def D(self):
