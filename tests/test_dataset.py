@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+import torch
 
 from lantern.dataset import CsvDataset, Dataset, Tokenizer
 
@@ -51,6 +52,12 @@ def test_single_phenotype(single_phenotype_csv_file):
     with pytest.raises(ValueError):
         ds = CsvDataset(multiple_phenotype_csv_file, errors=["errors", "other"])
 
+    # test indexing
+    x, y, n = ds[0]
+    assert abs(y.item() - 0.0) < 1e-8
+    assert abs(n.item() - 0.1) < 1e-8
+    assert torch.allclose(torch.tensor([1.0, 0.0]), x)
+
 
 def test_multiple_phenotypes(multiple_phenotype_csv_file):
 
@@ -73,3 +80,11 @@ def test_multiple_phenotypes(multiple_phenotype_csv_file):
         ds = CsvDataset(
             multiple_phenotype_csv_file, phenotypes=["p1", "p2"], errors=["e1"]
         )
+
+    # test indexing
+    x, y, n = ds[0]
+    assert abs(y[0].item() - 0.0) < 1e-8
+    assert abs(y[1].item() - 1.0) < 1e-8
+    assert abs(n[0].item() - 0.1) < 1e-8
+    assert abs(n[1].item() - 0.2) < 1e-8
+    assert torch.allclose(torch.tensor([1.0, 0.0]), x)
