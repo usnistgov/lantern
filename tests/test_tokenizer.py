@@ -68,27 +68,6 @@ def test_base_tokenizer():
         tok[100]
 
 
-def test_invalid_wt():
-
-    # just two wt's
-    variants = [
-        "A1B",
-        "C1B",
-    ]
-
-    with pytest.raises(ValueError):
-        Tokenizer.fromVariants(variants)
-
-    # one is in a compound variant
-    variants = [
-        "A1B",
-        "C1B:D2E",
-    ]
-
-    with pytest.raises(ValueError):
-        Tokenizer.fromVariants(variants)
-
-
 def test_nonstandard_tokens():
     variants = ["a1b", "a1b:A", "c2d", "A:c2d", "e3f", "e3f:a1b", "a1b:e3f"]
 
@@ -140,3 +119,24 @@ def test_nonstandard_tokens():
 
     # and detokenize
     assert tok.detokenize(t1) == "A:a1b"
+
+
+def test_invalid_wt():
+
+    # just two wt's
+    variants = [
+        "A1B",
+        "C1B",
+    ]
+
+    with pytest.raises(ValueError):
+        Tokenizer.fromVariants(variants)
+
+    # one is in a compound variant
+    variants = [
+        "A1B",
+        "C1B:D2E",
+    ]
+
+    with pytest.raises(ValueError):
+        Tokenizer.fromVariants(variants)
