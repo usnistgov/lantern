@@ -84,3 +84,8 @@ class VariationalBasis(Basis, Variational):
         gamma = self.qalpha(detach=True)
         srt = gamma.mean.sort().indices
         return srt
+
+    def loss(self, N, *args, **kwargs):
+        from lantern.loss import KL
+
+        return KL("variational_basis", self, N)

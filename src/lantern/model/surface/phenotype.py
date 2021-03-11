@@ -69,3 +69,8 @@ class Phenotype(ApproximateGP, Surface):
 
         device = strat.inducing_points.device
         strat.inducing_points.data[:] = torch.from_numpy(induc).to(device)
+
+    def loss(self, *args, **kwargs):
+        from lantern.loss import ELBO_GP
+
+        return ELBO_GP.fromGP(self, *args, **kwargs)

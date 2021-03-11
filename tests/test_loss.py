@@ -1,6 +1,6 @@
 import torch
 
-from lantern.model.loss import Loss, Term
+from lantern.loss import Loss, Term
 
 
 def test_loss_agg():

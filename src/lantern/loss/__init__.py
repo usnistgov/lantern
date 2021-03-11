@@ -1,1 +1,1 @@
-from lantern.model.loss.loss import Loss, Term
+from lantern.loss.loss import Loss, Term

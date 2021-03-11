@@ -59,7 +59,7 @@ class ELBO_GP(Term):
 
     @classmethod
     def fromGP(
-        cls, N, gp, likelihood=None, objective=VariationalELBO, sigma_hoc_offset=0
+        cls, gp, N, likelihood=None, objective=VariationalELBO, sigma_hoc_offset=0
     ):
         if likelihood is None:
             likelihood = GaussianLikelihood()

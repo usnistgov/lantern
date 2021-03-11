@@ -8,7 +8,7 @@ import attr
 import pandas as pd
 import numpy as np
 
-from lantern.tokenizer import Tokenizer
+from lantern.dataset.tokenizer import Tokenizer
 
 
 @attr.s()
@@ -47,7 +47,7 @@ class _Base(TensorDataset):
         # the tokenizer should be built with the necessary additional
         # information.
         if self.tokenizer is None:
-            self.tokenizer = Tokenizer.initialize(substitutions)
+            self.tokenizer = Tokenizer.fromVariants(substitutions)
 
         # build tensors
         N = len(self.df)
