@@ -35,18 +35,3 @@ rule gfp:
 
         # save
         raw.to_csv("data/processed/gfp.csv")
-
-# rule process:
-#     input:
-#         "data/raw/{ds}/raw.csv"
-#     output:
-#         "data/processed/{ds}.csv"
-#     run:
-#         import pandas as pd
-#         from sklearn.model_selection import KFold
-# 
-#         # load raw dataset and normalize the phenotype(s)
-#         raw = pd.read_csv(input[0])
-#         raw["phenotype"] = (raw["rphenotype"] - raw["rphenotype"].mean()) / raw["rphenotype"].std()
-# 
-#         cv = KFold(10, shuffle=True, random_state=19033851)

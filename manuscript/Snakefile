@@ -1,1 +1,14 @@
-include: "data.smk"
+# subworkflow data:
+#     snakefile:
+#         "data.smk"
+
+subworkflow gfp:
+    snakefile:
+        "train.smk"
+    configfile:
+        "config/gfp.yaml"
+
+rule all:
+    input:
+        # data("data/processed/gfp.csv"),
+        gfp(expand("experiments/gfp/lantern/cv{cv}/model.pt", cv=range(10)))
