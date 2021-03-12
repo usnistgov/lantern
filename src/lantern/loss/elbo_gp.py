@@ -28,10 +28,7 @@ class ELBO_GP(Term):
     mll = attr.ib(repr=False)
     raw_sigma_hoc = attr.ib(repr=False)
 
-    def __attrs_post_init__(self):
-        self.raw_sigma_hoc = nn.Parameter(torch.randn(self.D) + self.sigma_hoc_offset)
-
-    def loss(self, yhat, y, noise, *args, **kwargs) -> dict:
+    def loss(self, yhat, y, noise=None, *args, **kwargs) -> dict:
 
         if noise is not None:
             # fix 1d obseravation, probably needs to be fixed longer tem

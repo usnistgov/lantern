@@ -1,6 +1,6 @@
 
 test:
-	pytest tests/*
+	pytest -W ignore::DeprecationWarning tests/*
 
 cov:
-	pytest --cov-report html --cov-report term-missing --cov=lantern tests/
+	pytest -W ignore::DeprecationWarning --cov-report html --cov-report term-missing --cov=lantern tests/

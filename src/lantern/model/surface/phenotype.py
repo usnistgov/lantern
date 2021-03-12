@@ -1,57 +1,51 @@
 from gpytorch.models import ApproximateGP
 from gpytorch.variational import CholeskyVariationalDistribution
 from gpytorch.variational import VariationalStrategy
-from gpytorch.variational import VariationalDistribuiton
 from gpytorch.distributions import MultivariateNormal
 from gpytorch.variational import IndependentMultitaskVariationalStrategy
-from gpytorch.means import ConstantMean, Mean
-from gpytorch.kernel import Kernel, ScaleKernel, RQKernel
+from gpytorch.means import ConstantMean
+from gpytorch.kernels import ScaleKernel, RQKernel
 import torch
-import attr
-
-from lantern.model.surface import Surface
 
 
-@attr.s
-class Phenotype(ApproximateGP, Surface):
+class Phenotype(ApproximateGP):
     """A phenotype surface, learned with an approximate GP.
     """
 
-    inducing: torch.Tensor = attr.ib()
-    kernel: Kernel = attr.ib(default=ScaleKernel(RQKernel()))
-    mean: Mean = attr.ib(default=ConstantMean)
-    distribution: VariationalDistribuiton = attr.ib(
-        default=CholeskyVariationalDistribution
-    )
-    learn_inducing_locations: bool = attr.ib(default=True)
-
-    def __attrs_post_init__(self):
-
+    def __init__(
+        self,
+        D,
+        inducing_points,
+        strategy=CholeskyVariationalDistribution,
+        mean=ConstantMean,
+        kernel=lambda: ScaleKernel(RQKernel()),
+    ):
         size = torch.Size([])
-        if self.D > 1:
-            size = torch.Size([self.D])
+        if D > 1:
+            size = torch.Size([D])
 
-        variational_distribution = self.distribution(
-            self.inducing.size(-2), batch_shape=size
-        )
+        variational_distribution = strategy(inducing_points.size(-2), batch_shape=size)
         variational_strategy = VariationalStrategy(
             self,
-            self.inducing,
+            inducing_points,
             variational_distribution,
-            learn_inducing_locations=self.learn_inducing_locations,
+            learn_inducing_locations=True,
         )
 
-        if self.D > 1:
+        if D > 1:
             variational_strategy = IndependentMultitaskVariationalStrategy(
-                variational_strategy, num_tasks=self.D
+                variational_strategy, num_tasks=D
             )
 
-        ApproximateGP.__init__(self, variational_strategy)
+        super(Phenotype, self).__init__(variational_strategy)
 
-        self.mean_module = self.mean(batch_shape=size)
+        self.mean = mean(batch_shape=size)
+        self.kernel = kernel()
+        self.D = D
+        self.K = inducing_points.size(-1)
 
     def forward(self, z):
-        mean_x = self.mean_module(z)
+        mean_x = self.mean(z)
         covar_x = self.kernel(z)
         return MultivariateNormal(mean_x, covar_x)
 
@@ -74,3 +68,26 @@ class Phenotype(ApproximateGP, Surface):
         from lantern.loss import ELBO_GP
 
         return ELBO_GP.fromGP(self, *args, **kwargs)
+
+    @classmethod
+    def fromDataset(cls, ds, K, Ni=800, inducScale=10, *args, **kwargs):
+        """Build a phenotype surface from a dataset.
+
+        :param ds: Dataset for build a phenotype from.
+        :type ds: lantern.dataset.Dataset
+        :param K: Number of latent dimesions
+        :type K: int
+        :param Ni: Number of inducing points
+        :type Ni: int
+        :param inducScale: Range to initialize inducing points over (uniform from [-inducScale, inducScale])
+        :type inducScale: float
+        """
+        D = ds.D
+        if D > 1:
+            shape = (D, Ni, K)
+        else:
+            shape = (Ni, K)
+
+        return cls(
+            D, -inducScale + 2 * inducScale * torch.rand(*shape), *args, **kwargs
+        )

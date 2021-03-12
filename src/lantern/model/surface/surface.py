@@ -1,9 +1,10 @@
-from torch import nn
 import attr
+
+from lantern.module import Module
 
 
 @attr.s
-class Surface(nn.Module):
+class Surface(Module):
 
     D: int = attr.ib()
 

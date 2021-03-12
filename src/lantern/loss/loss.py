@@ -3,12 +3,18 @@ from typing import List
 import attr
 from torch import nn
 
+from lantern import Module
 
-class Term(nn.Module):
+
+@attr.s
+class Term(Module):
     """A loss term used in optimizing a model.
     """
 
-    def loss(self, yhat, y, noise, *args, **kwargs) -> dict:
+    def forward(self, *args, **kwargs):
+        return self.loss(*args, **kwargs)
+
+    def loss(self, yhat, y, noise=None, *args, **kwargs) -> dict:
         raise NotImplementedError()
 
     def __add__(self, other):
@@ -19,7 +25,7 @@ class Term(nn.Module):
 
 
 @attr.s
-class Loss:
+class Loss(Module):
 
     """The loss used to optimize a model, composed of individual Term's
     """
