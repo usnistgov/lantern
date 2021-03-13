@@ -8,17 +8,6 @@ from lantern.model import Variational
 from lantern.model.basis import Basis
 
 
-def kl_mvn_diag(m1, s1, m2, s2):
-    kl = (
-        (s2.prod() / s1.prod()).log()
-        - s1.shape[0]
-        + (s1 / s2).sum()
-        + torch.mv((1 / s2).diag(), (m1 - m2)).dot(m1 - m2)
-    )
-    kl *= 0.5
-    return kl
-
-
 @attr.s()
 class VariationalBasis(Basis, Variational):
     """A variational basis for reducing mutational data.
@@ -30,12 +19,12 @@ class VariationalBasis(Basis, Variational):
     def __attrs_post_init__(self):
         super(VariationalBasis, self).__attrs_post_init__()
 
-        self.W_mu = nn.Parameter(torch.randn(self.p, self.D))
-        self.W_log_sigma = nn.Parameter(torch.randn(self.p, self.D) - 3)
+        self.W_mu = nn.Parameter(torch.randn(self.p, self.K))
+        self.W_log_sigma = nn.Parameter(torch.randn(self.p, self.K) - 3)
 
         self.alpha_prior = Gamma(self.alpha_0, self.beta_0)
-        self.log_alpha = nn.Parameter(torch.randn(self.D))
-        self.log_beta = nn.Parameter(torch.randn(self.D))
+        self.log_alpha = nn.Parameter(torch.randn(self.K))
+        self.log_beta = nn.Parameter(torch.randn(self.K))
 
     def qalpha(self, detach=False):
         if detach:
@@ -80,7 +69,6 @@ class VariationalBasis(Basis, Variational):
 
     @property
     def order(self):
-
         gamma = self.qalpha(detach=True)
         srt = gamma.mean.sort().indices
         return srt
