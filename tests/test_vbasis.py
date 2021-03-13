@@ -20,7 +20,7 @@ def test_kl_loss_backward():
     assert W.shape == (N, K)
 
 
-def test_kl_order():
+def test_order():
 
     p = 200
     K = 10
@@ -32,3 +32,19 @@ def test_kl_order():
     assert torch.allclose(
         vb.order, torch.flip(torch.arange(K).view(K, 1), (0,)).view(K)
     )
+
+
+def test_eval():
+    p = 200
+    K = 10
+    N = 30
+
+    vb = VariationalBasis(p=p, K=K)
+    vb.eval()
+
+    with torch.no_grad():
+        X = torch.randn(N, p)
+        W1 = vb(X)
+        W2 = vb(X)
+
+    assert torch.allclose(W1, W2)
