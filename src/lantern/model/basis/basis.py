@@ -25,7 +25,5 @@ class Basis(torch.nn.Module):
         return torch.arange(self.K)
 
     @classmethod
-    def fromDataset(
-        cls, ds,
-    ):
-        return cls(ds.p, ds.K)
+    def fromDataset(cls, ds, K):
+        return cls(ds.p, K)

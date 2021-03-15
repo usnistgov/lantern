@@ -18,18 +18,21 @@ class Phenotype(ApproximateGP):
         inducing_points,
         strategy=CholeskyVariationalDistribution,
         mean=ConstantMean,
-        kernel=lambda: ScaleKernel(RQKernel()),
+        learn_inducing_locations=True,
     ):
         size = torch.Size([])
         if D > 1:
             size = torch.Size([D])
+
+            if len(inducing_points.shape) != 3:
+                raise ValueError("Should have D x I x K inducing points!")
 
         variational_distribution = strategy(inducing_points.size(-2), batch_shape=size)
         variational_strategy = VariationalStrategy(
             self,
             inducing_points,
             variational_distribution,
-            learn_inducing_locations=True,
+            learn_inducing_locations=learn_inducing_locations,
         )
 
         if D > 1:
@@ -39,10 +42,25 @@ class Phenotype(ApproximateGP):
 
         super(Phenotype, self).__init__(variational_strategy)
 
-        self.mean = mean(batch_shape=size)
-        self.kernel = kernel()
         self.D = D
         self.K = inducing_points.size(-1)
+        self.mean = mean(batch_shape=size)
+
+        # rq component
+        if self.D > 1:
+            kernel = RQKernel(ard_num_dims=self.K, batch_shape=torch.Size([self.D]))
+        else:
+            kernel = RQKernel(ard_num_dims=self.K)
+        if kernel.has_lengthscale:
+            kernel.raw_lengthscale.requires_grad = False
+
+        # scale component
+        if self.D > 1:
+            kernel = ScaleKernel(kernel, batch_shape=torch.Size([self.D]))
+        else:
+            kernel = ScaleKernel(kernel)
+
+        self.kernel = kernel
 
     def forward(self, z):
         mean_x = self.mean(z)

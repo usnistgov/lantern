@@ -8,6 +8,7 @@ from gpytorch.kernels import Kernel, ScaleKernel, RQKernel
 import pandas as pd
 import numpy as np
 import torch
+import pytest
 
 from lantern.model.surface import Phenotype
 from lantern.loss import ELBO_GP
@@ -34,7 +35,7 @@ def test_1d():
 
 def test_multid():
 
-    induc = torch.rand(100, 10)
+    induc = torch.rand(4, 100, 10)
     phen = Phenotype(4, induc)
 
     assert type(phen.variational_strategy) == IndependentMultitaskVariationalStrategy
@@ -48,6 +49,11 @@ def test_multid():
     induc = torch.rand(100, 10)
     phen._set_induc(induc.numpy())
     assert np.allclose(induc.numpy(), phen._get_induc())
+
+    assert not phen.kernel.base_kernel.lengthscale.requires_grad
+
+    with pytest.raises(ValueError):
+        Phenotype(4, torch.randn(100, 10))
 
 
 def test_loss():
