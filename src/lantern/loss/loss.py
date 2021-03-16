@@ -17,7 +17,7 @@ class Loss(Module):
         raise NotImplementedError()
 
 
-@attr.s
+@attr.s(eq=False)
 class Term(Loss):
     """A loss term used in optimizing a model.
     """
@@ -29,13 +29,16 @@ class Term(Loss):
             return Composite([self] + [other])
 
 
-@attr.s
+@attr.s(eq=False)
 class Composite(Loss):
 
     """The loss used to optimize a model, composed of individual Term's
     """
 
     losses: List[Term] = attr.ib()
+
+    def __attrs_post_init__(self):
+        self._losses = nn.ModuleList(self.losses)
 
     def loss(self, yhat, y, noise=None, *args, **kwargs):
 

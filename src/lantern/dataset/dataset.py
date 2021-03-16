@@ -80,6 +80,9 @@ class _Base(TensorDataset):
     def p(self):
         return self.tokenizer.p
 
+    def to(self, device):
+        self.tensors = [t.to(device) for t in self.tensors]
+
 
 @attr.s()
 class _DataframeDataset:

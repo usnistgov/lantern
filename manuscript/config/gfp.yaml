@@ -1,0 +1,5 @@
+label: avGFP
+name: gfp
+phenotypes:
+  - phenotype
+

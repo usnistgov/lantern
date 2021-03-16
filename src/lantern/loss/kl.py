@@ -4,7 +4,7 @@ from lantern.loss import Term
 from lantern.model import Variational
 
 
-@attr.s
+@attr.s(eq=False)
 class KL(Term):
 
     """ A variational KL loss term.

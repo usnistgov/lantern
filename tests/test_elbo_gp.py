@@ -18,6 +18,10 @@ def test_factory():
 
     assert type(elbo.mll.likelihood) == _MultitaskGaussianLikelihood
 
+    from torch.optim import Adam
+
+    Adam(elbo.parameters())
+
 
 def test_sigma_hoc_grad():
 

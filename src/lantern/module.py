@@ -2,7 +2,7 @@ from torch import nn
 import attr
 
 
-@attr.s()
+@attr.s(cmp=False)
 class Module(nn.Module):
     """A base module for lantern components
 

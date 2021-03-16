@@ -19,7 +19,7 @@ class _MultitaskGaussianLikelihood(MultitaskGaussianLikelihood):
         return noise_covar
 
 
-@attr.s
+@attr.s(eq=False)
 class ELBO_GP(Term):
 
     """The variational ELBO objective for GPs

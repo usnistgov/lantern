@@ -5,7 +5,7 @@ from lantern.model.surface import Surface
 from lantern.model.basis import Basis
 
 
-@attr.s
+@attr.s(cmp=False)
 class Model(Module):
     """The base model interface for *lantern*, learning a surface along a low-dimensional basis of mutational data.
     """
