@@ -1,6 +1,6 @@
 import torch
 
-from lantern.loss import Loss, Term
+from lantern.loss import Composite, Term
 
 
 def test_loss_agg():
@@ -12,7 +12,25 @@ def test_loss_agg():
         def loss(*args, **kwargs):
             return {"b": torch.randn(1)}
 
-    loss = Loss([A(), B()])
+    loss = Composite([A(), B()])
+    lss = loss.loss(None, None)
+    assert "a" in lss
+    assert "b" in lss
+
+    loss = A() + B()
+    assert type(loss) == Composite
+    lss = loss.loss(None, None)
+    assert "a" in lss
+    assert "b" in lss
+
+    loss = Composite([A()]) + B()
+    assert type(loss) == Composite
+    lss = loss.loss(None, None)
+    assert "a" in lss
+    assert "b" in lss
+
+    loss = B() + Composite([A()])
+    assert type(loss) == Composite
     lss = loss.loss(None, None)
     assert "a" in lss
     assert "b" in lss

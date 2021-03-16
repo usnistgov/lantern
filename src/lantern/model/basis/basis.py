@@ -2,7 +2,7 @@ import attr
 import torch
 
 
-@attr.s()
+@attr.s(cmp=False)
 class Basis(torch.nn.Module):
     """A dimension reducing basis for mutational data.
 

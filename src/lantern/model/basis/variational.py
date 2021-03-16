@@ -8,7 +8,7 @@ from lantern.model import Variational
 from lantern.model.basis import Basis
 
 
-@attr.s()
+@attr.s(cmp=False)
 class VariationalBasis(Basis, Variational):
     """A variational basis for reducing mutational data.
     """

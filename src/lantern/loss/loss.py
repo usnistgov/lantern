@@ -6,9 +6,8 @@ from torch import nn
 from lantern import Module
 
 
-@attr.s
-class Term(Module):
-    """A loss term used in optimizing a model.
+class Loss(Module):
+    """A loss component used in optimizing a model.
     """
 
     def forward(self, *args, **kwargs):
@@ -17,15 +16,21 @@ class Term(Module):
     def loss(self, yhat, y, noise=None, *args, **kwargs) -> dict:
         raise NotImplementedError()
 
+
+@attr.s
+class Term(Loss):
+    """A loss term used in optimizing a model.
+    """
+
     def __add__(self, other):
-        if isinstance(other, Loss):
-            return Loss([self] + other.losses)
+        if isinstance(other, Composite):
+            return Composite([self] + other.losses)
         elif isinstance(other, Term):
-            return Loss([self] + [other])
+            return Composite([self] + [other])
 
 
 @attr.s
-class Loss(Module):
+class Composite(Loss):
 
     """The loss used to optimize a model, composed of individual Term's
     """
@@ -44,7 +49,7 @@ class Loss(Module):
         return lss
 
     def __add__(self, other):
-        if isinstance(other, Loss):
-            return Loss(self.losses + other.losses)
+        if isinstance(other, Composite):
+            return Composite(self.losses + other.losses)
         elif isinstance(other, Term):
-            return Loss(self.losses + [other])
+            return Composite(self.losses + [other])
