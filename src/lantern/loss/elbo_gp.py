@@ -36,11 +36,11 @@ class ELBO_GP(Term):
                 noise = noise[:, 0]
                 y = y.reshape(*yhat.mean.shape)
 
-            if self.sigma_hoc:
+            if self.raw_sigma_hoc is not None:
                 noise = noise + F.softplus(self.raw_sigma_hoc)
 
             # fix for adding to diag
-            if self.D > 1:
+            if self.mll.model.D > 1:
                 noise = noise.reshape(noise.shape[0] * noise.shape[1])
 
             # note: noise is variance
@@ -56,7 +56,13 @@ class ELBO_GP(Term):
 
     @classmethod
     def fromGP(
-        cls, gp, N, likelihood=None, objective=VariationalELBO, sigma_hoc_offset=0
+        cls,
+        gp,
+        N,
+        likelihood=None,
+        objective=VariationalELBO,
+        sigma_hoc=False,
+        sigma_hoc_offset=0,
     ):
         if likelihood is None:
             likelihood = GaussianLikelihood()
@@ -65,5 +71,5 @@ class ELBO_GP(Term):
 
         return cls(
             objective(likelihood, gp, num_data=N, combine_terms=False),
-            nn.Parameter(torch.randn(gp.D) + sigma_hoc_offset),
+            nn.Parameter(torch.randn(gp.D) + sigma_hoc_offset) if sigma_hoc else None,
         )

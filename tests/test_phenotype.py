@@ -1,10 +1,6 @@
-from gpytorch.models import ApproximateGP
-from gpytorch.variational import CholeskyVariationalDistribution
 from gpytorch.variational import VariationalStrategy
 from gpytorch.distributions import MultivariateNormal, MultitaskMultivariateNormal
 from gpytorch.variational import IndependentMultitaskVariationalStrategy
-from gpytorch.means import ConstantMean, Mean
-from gpytorch.kernels import Kernel, ScaleKernel, RQKernel
 import pandas as pd
 import numpy as np
 import torch
