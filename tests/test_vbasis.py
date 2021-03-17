@@ -72,3 +72,28 @@ def test_loss():
     assert "variational_basis" in lss
 
     assert torch.allclose(lss["variational_basis"], vb._kl / N)
+
+
+def test_load_state_dict(tmp_path):
+    """Test that we can load the basis after saving the state_dict.
+    """
+    p = 200
+    K = 10
+
+    d = tmp_path / "out"
+    d.mkdir()
+
+    pt = d / "basis.pt"
+
+    vb = VariationalBasis(p=p, K=K)
+    vb(torch.randn(100, p))
+
+    torch.save(vb.state_dict(), pt)
+
+    vb2 = VariationalBasis(p=p, K=K)
+    vb2.load_state_dict(torch.load(pt))
+
+    print(vb._kl.size())
+    print(vb2._kl.size())
+
+    assert vb._kl.size() == vb2._kl.size()

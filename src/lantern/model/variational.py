@@ -9,7 +9,7 @@ class Variational(nn.Module):
     def __init__(self):
         super(Variational, self).__init__()
 
-        self.register_buffer("_kl", torch.zeros(1))
+        self.register_buffer("_kl", torch.tensor(0.0))
 
     def forward(self, *args, **kwargs):
 

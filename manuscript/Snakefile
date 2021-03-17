@@ -11,4 +11,6 @@ subworkflow gfp:
 rule all:
     input:
         # data("data/processed/gfp.csv"),
-        gfp(expand("experiments/gfp/lantern/cv{cv}/model.pt", cv=range(10)))
+        gfp(expand("experiments/gfp/lantern/cv{cv}/model.pt", cv=range(10))),
+        gfp(expand("experiments/gfp/feedforward-K8/cv{cv}/model.pt", cv=range(10))),
+        gfp(expand("experiments/gfp/lantern/cv{cv}/pred-val.csv", cv=range(10))),
