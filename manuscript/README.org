@@ -1,0 +1,16 @@
+#+TITLE: Analysis from manuscript "<insert final title here>"
+#+AUTHOR: Peter D. Tonner (NIST)
+* Setup
+  Along with the ~lantern~ package, analysis for the manuscript
+  requires additional packages to be installed:
+  #+begin_src bash
+    pip install lantern snakemake plotnine dms_variants
+  #+end_src
+  
+* Analysis
+  A high-level view of available pipeline components is available
+  through:
+  #+begin_src bash
+    snakemake -l
+  #+end_src
+  
