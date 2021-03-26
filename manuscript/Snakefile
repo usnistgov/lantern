@@ -1,37 +1,24 @@
+configfile: "config.yaml"
 
-subworkflow gfp_lantern:
-    snakefile:
-        "lantern.smk"
-    configfile:
-        "config/gfp.yaml"
-
-subworkflow gfp_ff:
-    snakefile:
-        "feedforward.smk"
-    configfile:
-        "config/gfp.yaml"
-
-subworkflow gfp_globalep:
-    snakefile:
-        "globalep.smk"
-    configfile:
-        "config/gfp.yaml"
-
+include: "data.smk"
+include: "lantern.smk"
+include: "feedforward.smk"
+include: "globalep.smk"
 include: "figures.smk"
 
-rule gfp:
+rule models:
     """
-    Generate models of avGFP data (warning: computation intensive!)
+    Generate models (warning: computation intensive!)
     """
     input:
-        # data("data/processed/gfp.csv"),
-        gfp_lantern(expand("experiments/gfp/lantern/cv{cv}/model.pt", cv=range(10))),
-        gfp_lantern(expand("experiments/gfp/lantern/cv{cv}/pred-val.csv", cv=range(10))),
-        gfp_ff(expand("experiments/gfp/feedforward-K8/cv{cv}/model.pt", cv=range(10))),
-        gfp_ff(expand("experiments/gfp/feedforward-K1/cv{cv}/model.pt", cv=range(10))),
-        gfp_ff(expand("experiments/gfp/feedforward-K8/cv{cv}/pred-val.csv", cv=range(10))),
-        gfp_ff(expand("experiments/gfp/feedforward-K1/cv{cv}/pred-val.csv", cv=range(10))),
-        gfp_globalep(expand("experiments/gfp-brightness/globalep/cv{cv}/pred-val.csv", cv=range(10))),
+        expand("experiments/gfp/lantern/cv{cv}/model.pt", cv=range(10)),
+        expand("experiments/gfp/lantern/cv{cv}/pred-val.csv", cv=range(10)),
+        expand("experiments/gfp/feedforward-K8/cv{cv}/model.pt", cv=range(10)),
+        expand("experiments/gfp/feedforward-K1/cv{cv}/model.pt", cv=range(10)),
+        expand("experiments/gfp/feedforward-K8/cv{cv}/pred-val.csv", cv=range(10)),
+        expand("experiments/gfp/feedforward-K1/cv{cv}/pred-val.csv", cv=range(10)),
+        expand("experiments/gfp-brightness/globalep/cv{cv}/pred-val.csv", cv=range(10)),
+
 
 rule figures:
     """

@@ -59,17 +59,16 @@ class Feedforward(nn.Module):
 
         return loss.mean()
 
-# data dependencies for all training
-subworkflow data:
-    snakefile:
-        "data.smk"
-
-rule cv:
+rule ff_cv:
     input:
-        data(expand("data/processed/{name}.csv", name=config["name"]))
+        "data/processed/{ds}.csv"
     output:
-        expand("experiments/{ds}/feedforward-K{K,\d+}/cv{cv}/model.pt", ds=config["name"], allow_missing=True),
+        "experiments/{ds}/feedforward-K{K,\d+}/cv{cv}/model.pt"
     run:
+        def cget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+        
         # Load the dataset
         df = pd.read_csv(input[0])
         ds = Dataset(
@@ -80,8 +79,8 @@ rule cv:
         )
 
         # Build model and loss
-        DEPTH = get(config, "feedforward/depth", default=1)
-        WIDTH = get(config, "feedforward/width", default=32)
+        DEPTH = cget("feedforward/depth", default=1)
+        WIDTH = cget("feedforward/width", default=32)
         model = Feedforward(
             p=ds.p, K=int(wildcards.K), D=ds.D,
             depth=DEPTH,
@@ -95,17 +94,17 @@ rule cv:
         # Setup training infrastructure
         train = Subset(ds, np.where(df.cv != float(wildcards.cv))[0])
         validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
-        tloader = DataLoader(train, batch_size=get(config, "lantern/batch-size", default=128))
-        vloader = DataLoader(validation, batch_size=get(config, "lantern/batch-size", default=128))
+        tloader = DataLoader(train, batch_size=cget("lantern/batch-size", default=128))
+        vloader = DataLoader(validation, batch_size=cget("lantern/batch-size", default=128))
 
-        lr = get(config, "lantern/lr", default=0.001)
+        lr = cget("lantern/lr", default=0.001)
         optimizer = Adam(model.parameters(), lr=lr)
 
         mlflow.set_experiment("feedforward cross-validation".format(label=config["label"]))
 
         # Run optimization
         with mlflow.start_run() as run:
-            mlflow.log_param("dataset", config["name"])
+            mlflow.log_param("dataset", wildcards.ds)
             mlflow.log_param("model", "lantern")
             mlflow.log_param("lr", lr)
             mlflow.log_param("depth", DEPTH)
@@ -113,7 +112,7 @@ rule cv:
             mlflow.log_param("cv", wildcards.cv)
             mlflow.log_param("batch-size", tloader.batch_size)
 
-            pbar = tqdm(range(get(config, "lantern/epochs", default=100)),)
+            pbar = tqdm(range(cget("lantern/epochs", default=100)),)
             best = np.inf
             for e in pbar:
 
@@ -156,17 +155,21 @@ rule cv:
             torch.save(model.state_dict(), os.path.join(base, "model.pt"))
             mlflow.log_artifact(os.path.join(base, "model.pt"), "model")
 
-rule prediction:
+rule ff_prediction:
     input:
-        data(expand("data/processed/{name}.csv", name=config["name"])),
-        data(expand("data/processed/{name}.pkl", name=config["name"])),
-        expand("experiments/{ds}/feedforward-K{K,\d+}/cv{cv}/model.pt", ds=config["name"], allow_missing=True),
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}.pkl",
+        "experiments/{ds}/feedforward-K{K,\d+}/cv{cv}/model.pt"
     output:
-        expand("experiments/{ds}/feedforward-K{K,\d+}/cv{cv}/pred-val.csv", ds=config["name"], allow_missing=True),
+        "experiments/{ds}/feedforward-K{K,\d+}/cv{cv}/pred-val.csv"
     run:
         import pickle
+        def cget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+        
 
-        CUDA = get(config, "feedforward/prediction/cuda", default=True)
+        CUDA = cget("feedforward/prediction/cuda", default=True)
 
         # Load the dataset
         df = pd.read_csv(input[0])
@@ -175,9 +178,8 @@ rule prediction:
         validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
 
         # Build model and loss
-        # Build model and loss
-        DEPTH = get(config, "feedforward/depth", default=1)
-        WIDTH = get(config, "feedforward/width", default=32)
+        DEPTH = cget("feedforward/depth", default=1)
+        WIDTH = cget("feedforward/width", default=32)
         model = Feedforward(
             p=ds.p, K=int(wildcards.K), D=ds.D,
             depth=DEPTH,
@@ -206,7 +208,7 @@ rule prediction:
                     model,
                     validation,
                     cuda=CUDA,
-                    size=get(config, "feedforward/prediction/size", default=1024),
-                    pbar=get(config, "feedforward/prediction/pbar", default=True)
+                    size=cget("feedforward/prediction/size", default=1024),
+                    pbar=cget("feedforward/prediction/pbar", default=True)
                 )
             )

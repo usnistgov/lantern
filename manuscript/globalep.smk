@@ -5,26 +5,24 @@ import numpy as np
 import dms_variants.binarymap
 import dms_variants.globalepistasis
 
-# data dependencies for all training
-subworkflow data:
-    snakefile:
-        "data.smk"
-
-rule cv:
+rule ge_cv:
     input:
-        data(expand("data/processed/{name}.csv", name=config["name"]))
+        "data/processed/{ds}.csv"
     output:
-        expand("experiments/{ds}-{phenotype}/globalep/cv{cv}/model.pkl", ds=config["name"], allow_missing=True),
-        expand("experiments/{ds}-{phenotype}/globalep/cv{cv}/pred-val.csv", ds=config["name"], allow_missing=True),
+        "experiments/{ds}-{phenotype}/globalep/cv{cv}/model.pkl",
+        "experiments/{ds}-{phenotype}/globalep/cv{cv}/pred-val.csv"
     run:
+        def cget(pth, default=None):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
 
-        phenotype = config.get("phenotypes")[wildcards.phenotype].get("col", "phenotype")
-        noise = config.get("phenotypes")[wildcards.phenotype].get("noise", None)
+        phenotype = cget("phenotypes")[wildcards.phenotype].get("col", "phenotype")
+        noise = cget("phenotypes")[wildcards.phenotype].get("noise", None)
 
         df = pd.read_csv(input[0])
         df = df.assign(
             aa_substitutions=(
-                df[config.get("substitutions", "substitutions")]
+                df[cget("substitutions", "substitutions")]
                 .replace(np.nan, "")
                 .str
                 .replace(":", " ")
@@ -33,7 +31,7 @@ rule cv:
         )
 
         # hack for avGFP to remove leading "S"
-        if config.get("name") == "gfp":
+        if wildcards.ds == "gfp":
             df.aa_substitutions = df.aa_substitutions.str.split(" ").apply(
                     lambda x: " ".join([xx[1:] for xx in x])
                 )
@@ -43,7 +41,7 @@ rule cv:
                 func_score_var=df[noise],
             )
 
-        alphabet = config.get("alphabet", [
+        alphabet = cget("alphabet", [
                 "A",
                 "C",
                 "D",

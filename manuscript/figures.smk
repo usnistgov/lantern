@@ -2,34 +2,16 @@ import pandas as pd
 from plotnine import *
 from sklearn.metrics import r2_score, mean_squared_error
 
-# subworkflow gfp_lantern:
-#     snakefile:
-#         "lantern.smk"
-#     configfile:
-#         "config/gfp.yaml"
-# 
-# subworkflow gfp_ff:
-#     snakefile:
-#         "feedforward.smk"
-#     configfile:
-#         "config/gfp.yaml"
-# 
-# subworkflow gfp_globalep:
-#     snakefile:
-#         "globalep.smk"
-#     configfile:
-#         "config/gfp.yaml"
-
 rule cvr2:
     """
     Cross-validated coefficient of determination (R^2) across models and datasets.
     """
 
     input:
-        gfp_lantern=gfp_lantern(expand("experiments/gfp/lantern/cv{cv}/pred-val.csv", cv=range(10))),
-        gfp_ff_k1=gfp_lantern(expand("experiments/gfp/feedforward-K1/cv{cv}/pred-val.csv", cv=range(10))),
-        gfp_ff_k8=gfp_lantern(expand("experiments/gfp/feedforward-K8/cv{cv}/pred-val.csv", cv=range(10))),
-        gfp_globalep=gfp_globalep(expand("experiments/gfp-brightness/globalep/cv{cv}/pred-val.csv", cv=range(10))),
+        gfp_lantern=expand("experiments/gfp/lantern/cv{cv}/pred-val.csv", cv=range(10)),
+        gfp_ff_k1=expand("experiments/gfp/feedforward-K1/cv{cv}/pred-val.csv", cv=range(10)),
+        gfp_ff_k8=expand("experiments/gfp/feedforward-K8/cv{cv}/pred-val.csv", cv=range(10)),
+        gfp_globalep=expand("experiments/gfp-brightness/globalep/cv{cv}/pred-val.csv", cv=range(10)),
     output:
         "figures/cvr2.png"
     run:
@@ -44,15 +26,6 @@ rule cvr2:
         ]:
             _scores = pd.concat([pd.read_csv(pth) for pth in pths])
             if model == "I-spline":
-                print((_scores.groupby("cv")
-                .apply(
-                    lambda x: metric(
-                        x.observed_phenotype,
-                        x.func_score,
-                        sample_weight=None if noiseless else 1 / x.func_score_var,
-                    )
-                )).head())
-
                 _scores = (
                     _scores.groupby("cv")
                     .apply(
