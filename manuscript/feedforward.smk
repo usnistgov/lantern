@@ -155,3 +155,58 @@ rule cv:
             os.makedirs(base, exist_ok=True)
             torch.save(model.state_dict(), os.path.join(base, "model.pt"))
             mlflow.log_artifact(os.path.join(base, "model.pt"), "model")
+
+rule prediction:
+    input:
+        data(expand("data/processed/{name}.csv", name=config["name"])),
+        data(expand("data/processed/{name}.pkl", name=config["name"])),
+        expand("experiments/{ds}/feedforward-K{K,\d+}/cv{cv}/model.pt", ds=config["name"], allow_missing=True),
+    output:
+        expand("experiments/{ds}/feedforward-K{K,\d+}/cv{cv}/pred-val.csv", ds=config["name"], allow_missing=True),
+    run:
+        import pickle
+
+        CUDA = get(config, "feedforward/prediction/cuda", default=True)
+
+        # Load the dataset
+        df = pd.read_csv(input[0])
+        ds = pickle.load(open(input[1], "rb"))
+        train = Subset(ds, np.where(df.cv != float(wildcards.cv))[0])
+        validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
+
+        # Build model and loss
+        # Build model and loss
+        DEPTH = get(config, "feedforward/depth", default=1)
+        WIDTH = get(config, "feedforward/width", default=32)
+        model = Feedforward(
+            p=ds.p, K=int(wildcards.K), D=ds.D,
+            depth=DEPTH,
+            width=WIDTH,
+        )
+
+        model.load_state_dict(torch.load(input[2], "cpu"))
+        model.eval()
+
+        if CUDA:
+            model = model.cuda()
+
+        def save(ofile, df, **kwargs):
+            for k, t in kwargs.items():
+                for i in range(t.shape[1]):
+                    df["{}{}".format(k, i)] = t[:, i]
+
+            df.to_csv(ofile, index=False)
+
+        with torch.no_grad():
+            save(
+                output[0],
+                df[df.cv == float(wildcards.cv)],
+                **predictions(
+                    ds.D,
+                    model,
+                    validation,
+                    cuda=CUDA,
+                    size=get(config, "feedforward/prediction/size", default=1024),
+                    pbar=get(config, "feedforward/prediction/pbar", default=True)
+                )
+            )

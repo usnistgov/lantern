@@ -1,3 +1,4 @@
+import pickle
 import os
 import torch
 from torch import nn
@@ -129,6 +130,7 @@ rule cv:
 rule prediction:
     input:
         data(expand("data/processed/{name}.csv", name=config["name"])),
+        data(expand("data/processed/{name}.pkl", name=config["name"])),
         expand("experiments/{ds}/lantern/cv{cv}/model.pt", ds=config["name"], allow_missing=True),
     output:
         expand("experiments/{ds}/lantern/cv{cv}/pred-val.csv", ds=config["name"], allow_missing=True),
@@ -137,12 +139,7 @@ rule prediction:
 
         # Load the dataset
         df = pd.read_csv(input[0])
-        ds = Dataset(
-            df,
-            substitutions=config.get("substitutions", "substitutions"),
-            phenotypes=config.get("phenotypes", ["phenotype"]),
-            errors=config.get("errors", None),
-        )
+        ds = pickle.load(open(input[1], "rb"))
         train = Subset(ds, np.where(df.cv != float(wildcards.cv))[0])
         validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
 
@@ -152,7 +149,7 @@ rule prediction:
             Phenotype.fromDataset(ds, config.get("K", 8))
         )
 
-        model.load_state_dict(torch.load(input[1]))
+        model.load_state_dict(torch.load(input[2], "cpu"))
         model.eval()
 
         if CUDA:

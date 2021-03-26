@@ -35,3 +35,23 @@ rule gfp:
 
         # save
         raw.to_csv("data/processed/gfp.csv")
+
+rule gfp_pkl:
+    input:
+        "data/processed/gfp.csv"
+    output:
+        "data/processed/gfp.pkl"
+    run:
+        import pickle
+        import pandas as pd
+        from lantern.dataset import Dataset
+
+        df = pd.read_csv(input[0])
+        ds = Dataset(
+            df,
+            substitutions="substitutions",
+            phenotypes=["phenotype"],
+            errors=None
+        )
+
+        pickle.dump(ds, open(output[0], "wb"))

@@ -1,16 +1,53 @@
-# subworkflow data:
-#     snakefile:
-#         "data.smk"
 
-subworkflow gfp:
+subworkflow gfp_lantern:
     snakefile:
-        "train.smk"
+        "lantern.smk"
     configfile:
         "config/gfp.yaml"
 
-rule all:
+subworkflow gfp_ff:
+    snakefile:
+        "feedforward.smk"
+    configfile:
+        "config/gfp.yaml"
+
+subworkflow gfp_globalep:
+    snakefile:
+        "globalep.smk"
+    configfile:
+        "config/gfp.yaml"
+
+include: "figures.smk"
+
+rule gfp:
+    """
+    Generate models of avGFP data (warning: computation intensive!)
+    """
     input:
         # data("data/processed/gfp.csv"),
-        gfp(expand("experiments/gfp/lantern/cv{cv}/model.pt", cv=range(10))),
-        gfp(expand("experiments/gfp/feedforward-K8/cv{cv}/model.pt", cv=range(10))),
-        gfp(expand("experiments/gfp/lantern/cv{cv}/pred-val.csv", cv=range(10))),
+        gfp_lantern(expand("experiments/gfp/lantern/cv{cv}/model.pt", cv=range(10))),
+        gfp_lantern(expand("experiments/gfp/lantern/cv{cv}/pred-val.csv", cv=range(10))),
+        gfp_ff(expand("experiments/gfp/feedforward-K8/cv{cv}/model.pt", cv=range(10))),
+        gfp_ff(expand("experiments/gfp/feedforward-K1/cv{cv}/model.pt", cv=range(10))),
+        gfp_ff(expand("experiments/gfp/feedforward-K8/cv{cv}/pred-val.csv", cv=range(10))),
+        gfp_ff(expand("experiments/gfp/feedforward-K1/cv{cv}/pred-val.csv", cv=range(10))),
+        gfp_globalep(expand("experiments/gfp-brightness/globalep/cv{cv}/pred-val.csv", cv=range(10))),
+
+rule figures:
+    """
+    Generate figures for the manuscript.
+    """
+    input:
+        "figures/cvr2.png",
+
+    shell:
+        "tar -czf figures.tar.gz figures/*"
+
+rule help:
+    """
+    Print list of all targets with help.
+    """
+    run:
+        for rule in workflow.rules:
+            print(rule.name)
+            print(rule.docstring)

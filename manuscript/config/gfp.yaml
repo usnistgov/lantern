@@ -1,5 +1,17 @@
 label: avGFP
 name: gfp
+
 phenotypes:
-  - phenotype
+  brightness:
+    col: "phenotype"
+
+lantern:
+  prediction:
+    cuda: False
+
+feedforward:
+  prediction:
+    cuda: False
+
+alphabet: ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y","*"]
 
