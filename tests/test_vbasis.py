@@ -1,4 +1,6 @@
 import torch
+from torch import nn
+from torch.distributions import Gamma
 
 from lantern.model.basis import VariationalBasis
 from lantern.loss import KL
@@ -10,7 +12,13 @@ def test_kl_loss_backward():
     K = 10
     N = 100
 
-    vb = VariationalBasis(p=p, K=K)
+    vb = VariationalBasis(
+        nn.Parameter(torch.randn(p, K)),
+        nn.Parameter(torch.randn(p, K) - 3),
+        nn.Parameter(torch.randn(K)),
+        nn.Parameter(torch.randn(K)),
+        Gamma(0.001, 0.001),
+    )
     W = vb(torch.randn(N, p))
 
     assert vb.W_mu.grad is None
@@ -26,7 +34,13 @@ def test_order():
     p = 200
     K = 10
 
-    vb = VariationalBasis(p=p, K=K)
+    vb = VariationalBasis(
+        nn.Parameter(torch.randn(p, K)),
+        nn.Parameter(torch.randn(p, K) - 3),
+        nn.Parameter(torch.randn(K)),
+        nn.Parameter(torch.randn(K)),
+        Gamma(0.001, 0.001),
+    )
     vb.log_alpha.data = torch.ones(K)
     vb.log_beta.data = torch.arange(K) * 1.0
 
@@ -45,7 +59,13 @@ def test_eval():
     K = 10
     N = 30
 
-    vb = VariationalBasis(p=p, K=K)
+    vb = VariationalBasis(
+        nn.Parameter(torch.randn(p, K)),
+        nn.Parameter(torch.randn(p, K) - 3),
+        nn.Parameter(torch.randn(K)),
+        nn.Parameter(torch.randn(K)),
+        Gamma(0.001, 0.001),
+    )
     vb.eval()
 
     with torch.no_grad():
@@ -62,7 +82,13 @@ def test_loss():
     K = 10
     N = 1000
 
-    vb = VariationalBasis(p=p, K=K)
+    vb = VariationalBasis(
+        nn.Parameter(torch.randn(p, K)),
+        nn.Parameter(torch.randn(p, K) - 3),
+        nn.Parameter(torch.randn(K)),
+        nn.Parameter(torch.randn(K)),
+        Gamma(0.001, 0.001),
+    )
     loss = vb.loss(N=N)
     assert type(loss) == KL
 
@@ -85,12 +111,24 @@ def test_load_state_dict(tmp_path):
 
     pt = d / "basis.pt"
 
-    vb = VariationalBasis(p=p, K=K)
+    vb = VariationalBasis(
+        nn.Parameter(torch.randn(p, K)),
+        nn.Parameter(torch.randn(p, K) - 3),
+        nn.Parameter(torch.randn(K)),
+        nn.Parameter(torch.randn(K)),
+        Gamma(0.001, 0.001),
+    )
     vb(torch.randn(100, p))
 
     torch.save(vb.state_dict(), pt)
 
-    vb2 = VariationalBasis(p=p, K=K)
+    vb2 = VariationalBasis(
+        nn.Parameter(torch.randn(p, K)),
+        nn.Parameter(torch.randn(p, K) - 3),
+        nn.Parameter(torch.randn(K)),
+        nn.Parameter(torch.randn(K)),
+        Gamma(0.001, 0.001),
+    )
     vb2.load_state_dict(torch.load(pt))
 
     print(vb._kl.size())

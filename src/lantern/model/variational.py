@@ -1,13 +1,15 @@
-from torch import nn
 import torch
+import attr
+
+from lantern import Module
 
 
-class Variational(nn.Module):
+@attr.s(cmp=False)
+class Variational(Module):
     """A Variational module, that keeps track of it's running KL loss.
     """
 
-    def __init__(self):
-        super(Variational, self).__init__()
+    def __attrs_post_init__(self):
 
         self.register_buffer("_kl", torch.tensor(0.0))
 

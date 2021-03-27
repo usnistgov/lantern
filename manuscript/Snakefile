@@ -26,6 +26,7 @@ rule figures:
     """
     input:
         "figures/cvr2.png",
+        "figures/gfp/surface.png",
 
     shell:
         "tar -czf figures.tar.gz figures/*"

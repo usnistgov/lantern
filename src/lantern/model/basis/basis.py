@@ -1,9 +1,11 @@
 import attr
 import torch
 
+from lantern import Module
+
 
 @attr.s(cmp=False)
-class Basis(torch.nn.Module):
+class Basis(Module):
     """A dimension reducing basis for mutational data.
 
     :param p: Input dimension, e.g. the number of mutations
@@ -12,11 +14,19 @@ class Basis(torch.nn.Module):
     :type K: int
     """
 
-    p: int = attr.ib()
-    K: int = attr.ib()
+    # p: int = attr.ib()
+    # K: int = attr.ib()
 
-    def __attrs_post_init__(self):
-        super(Basis, self).__init__()
+    # def __attrs_post_init__(self):
+    #     super(Basis, self).__init__()
+
+    @property
+    def p(self):
+        raise NotImplementedError()
+
+    @property
+    def K(self):
+        raise NotImplementedError()
 
     @property
     def order(self):
@@ -26,4 +36,4 @@ class Basis(torch.nn.Module):
 
     @classmethod
     def fromDataset(cls, ds, K):
-        return cls(ds.p, K)
+        raise NotImplementedError()

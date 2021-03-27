@@ -13,7 +13,7 @@ from setuptools import setup
 
 setup(
     name="lantern",
-    version="0.1.0a",
+    version="0.1.1a",
     license="NIST",
     description="Genotype-phenotype landscape interpretable nonparametric models",
     author="Dr. Peter Tonner",

@@ -13,18 +13,30 @@ class VariationalBasis(Basis, Variational):
     """A variational basis for reducing mutational data.
     """
 
-    alpha_0: float = attr.ib(default=0.001)
-    beta_0: float = attr.ib(default=0.001)
+    W_mu: nn.Parameter = attr.ib()
+    W_log_sigma: nn.Parameter = attr.ib()
+    log_alpha: nn.Parameter = attr.ib()
+    log_beta: nn.Parameter = attr.ib()
+    alpha_prior: Gamma = attr.ib()
 
-    def __attrs_post_init__(self):
-        super(VariationalBasis, self).__attrs_post_init__()
+    @classmethod
+    def fromDataset(cls, ds, K, alpha_0=0.001, beta_0=0.001):
+        p = ds.p
+        return cls(
+            nn.Parameter(torch.randn(p, K)),
+            nn.Parameter(torch.randn(p, K) - 3),
+            nn.Parameter(torch.randn(K)),
+            nn.Parameter(torch.randn(K)),
+            Gamma(alpha_0, beta_0),
+        )
 
-        self.W_mu = nn.Parameter(torch.randn(self.p, self.K))
-        self.W_log_sigma = nn.Parameter(torch.randn(self.p, self.K) - 3)
+    @property
+    def p(self):
+        return self.W_mu.shape[0]
 
-        self.alpha_prior = Gamma(self.alpha_0, self.beta_0)
-        self.log_alpha = nn.Parameter(torch.randn(self.K))
-        self.log_beta = nn.Parameter(torch.randn(self.K))
+    @property
+    def K(self):
+        return self.W_mu.shape[1]
 
     def qalpha(self, detach=False):
         if detach:
