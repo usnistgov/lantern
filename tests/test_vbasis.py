@@ -146,7 +146,7 @@ def test_ds_construct_1d():
         {"substitutions": ["a1b", "c2d"], "phenotype": [0.0, 1.0], "error": [0.1, 0.2],}
     )
     ds = Dataset(df)
-    vb = VariationalBasis.fromDataset(ds, 10)
+    vb = VariationalBasis.fromDataset(ds, 10, meanEffectsInit=True)
 
     assert vb.K == 10
     assert vb.p == ds.p
@@ -169,7 +169,7 @@ def test_ds_construct_multid():
     )
 
     ds = Dataset(df, phenotypes=["p1", "p2"], errors=["e1", "e2"])
-    vb = VariationalBasis.fromDataset(ds, 10)
+    vb = VariationalBasis.fromDataset(ds, 10, meanEffectsInit=True)
 
     assert vb.K == 10
     assert vb.p == ds.p

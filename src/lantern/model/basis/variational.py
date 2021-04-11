@@ -20,7 +20,7 @@ class VariationalBasis(Basis, Variational):
     alpha_prior: Gamma = attr.ib()
 
     @classmethod
-    def fromDataset(cls, ds, K, alpha_0=0.001, beta_0=0.001, meanEffectsInit=True):
+    def fromDataset(cls, ds, K, alpha_0=0.001, beta_0=0.001, meanEffectsInit=False):
         p = ds.p
         Wmu = torch.randn(p, K)
 
