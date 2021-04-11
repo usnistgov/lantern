@@ -13,8 +13,7 @@ from lantern.dataset import Dataset
 
 def test_1d():
 
-    induc = torch.rand(100, 10)
-    phen = Phenotype(1, induc)
+    phen = Phenotype.build(1, 10, Ni=100)
 
     assert type(phen.variational_strategy) == VariationalStrategy
 
@@ -22,17 +21,15 @@ def test_1d():
     assert type(mvn) == MultivariateNormal
     assert mvn.mean.shape == (50,)
 
-    assert np.allclose(induc.numpy(), phen._get_induc())
-
     induc = torch.rand(100, 10)
+    assert not np.allclose(induc.numpy(), phen._get_induc())
     phen._set_induc(induc.numpy())
     assert np.allclose(induc.numpy(), phen._get_induc())
 
 
 def test_multid():
 
-    induc = torch.rand(4, 100, 10)
-    phen = Phenotype(4, induc)
+    phen = Phenotype.build(4, 10, Ni=100)
 
     assert type(phen.variational_strategy) == IndependentMultitaskVariationalStrategy
 
@@ -40,22 +37,17 @@ def test_multid():
     assert type(mvn) == MultitaskMultivariateNormal
     assert mvn.mean.shape == (50, 4)
 
-    assert np.allclose(induc.numpy(), phen._get_induc())
-
-    induc = torch.rand(100, 10)
+    induc = torch.rand(4, 100, 10)
+    assert not np.allclose(induc.numpy(), phen._get_induc())
     phen._set_induc(induc.numpy())
     assert np.allclose(induc.numpy(), phen._get_induc())
 
     assert not phen.kernel.base_kernel.lengthscale.requires_grad
 
-    with pytest.raises(ValueError):
-        Phenotype(4, torch.randn(100, 10))
-
 
 def test_loss():
 
-    induc = torch.rand(100, 10)
-    phen = Phenotype(1, induc)
+    phen = Phenotype.build(1, 10, Ni=100)
     loss = phen.loss(N=1000)
     assert type(loss) == ELBO_GP
 
