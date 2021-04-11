@@ -2,8 +2,7 @@ gfp:
   label: avGFP
   
   phenotypes:
-    brightness:
-      col: "phenotype"
+    brightness: ["phenotype"]
   
   lantern:
     prediction:

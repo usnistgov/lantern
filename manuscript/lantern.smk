@@ -27,7 +27,7 @@ rule lantern_cv:
         "experiments/{ds}-{phenotype}/lantern/cv{cv}/model.pt",
         "experiments/{ds}-{phenotype}/lantern/cv{cv}/loss.pt"
     run:
-        def cget(pth, default):
+        def dsget(pth, default):
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
         
@@ -35,20 +35,20 @@ rule lantern_cv:
         df = pd.read_csv(input[0])
         ds = Dataset(
             df,
-            substitutions=cget("substitutions", default="substitutions"),
-            phenotypes=cget("phenotypes", default=["phenotype"]),
-            errors=cget("errors", None),
+            substitutions=dsget("substitutions", default="substitutions"),
+            phenotypes=dsget(f"phenotypes/{wildcards.phenotype}", default=["phenotype"]),
+            errors=dsget("errors", None),
         )
 
         # Build model and loss
         model = Model(
-            VariationalBasis.fromDataset(ds, cget("K", 8)),
-            Phenotype.fromDataset(ds, cget("K", 8))
+            VariationalBasis.fromDataset(ds, dsget("K", 8)),
+            Phenotype.fromDataset(ds, dsget("K", 8))
         )
 
         loss = model.loss(N=len(ds))
 
-        if cget("cuda", True):
+        if dsget("cuda", True):
             model = model.cuda()
             loss = loss.cuda()
             ds.to("cuda")
@@ -56,10 +56,10 @@ rule lantern_cv:
         # Setup training infrastructure
         train = Subset(ds, np.where(df.cv != float(wildcards.cv))[0])
         validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
-        tloader = DataLoader(train, batch_size=cget("lantern/batch-size", default=8192))
-        vloader = DataLoader(validation, batch_size=cget("lantern/batch-size", default=8192))
+        tloader = DataLoader(train, batch_size=dsget("lantern/batch-size", default=8192))
+        vloader = DataLoader(validation, batch_size=dsget("lantern/batch-size", default=8192))
 
-        optimizer = Adam(loss.parameters(), lr=cget("lantern/lr", default=0.01))
+        optimizer = Adam(loss.parameters(), lr=dsget("lantern/lr", default=0.01))
         # writer = SummaryWriter(logdir)
 
         mlflow.set_experiment("lantern cross-validation")
@@ -68,11 +68,11 @@ rule lantern_cv:
         with mlflow.start_run() as run:
             mlflow.log_param("dataset", wildcards.ds)
             mlflow.log_param("model", "lantern")
-            mlflow.log_param("lr", cget("lantern/lr", default=0.01))
+            mlflow.log_param("lr", dsget("lantern/lr", default=0.01))
             mlflow.log_param("cv", wildcards.cv)
             mlflow.log_param("batch-size", tloader.batch_size)
 
-            pbar = tqdm(range(cget("lantern/epochs", default=5000)),)
+            pbar = tqdm(range(dsget("lantern/epochs", default=5000)),)
             best = np.inf
             for e in pbar:
 
@@ -130,22 +130,32 @@ rule lantern_prediction:
     input:
         "data/processed/{ds}.csv",
         "data/processed/{ds}.pkl",
-        "experiments/{ds}/lantern/cv{cv}/model.pt"
+        "experiments/{ds}-{phenotype}/lantern/cv{cv}/model.pt"
     output:
-        "experiments/{ds}/lantern/cv{cv}/pred-val.csv"
+        "experiments/{ds}-{phenotype}/lantern/cv{cv}/pred-val.csv"
     run:
-        CUDA = cget("lantern/prediction/cuda", default=True)
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+        
+        CUDA = dsget("lantern/prediction/cuda", default=True)
 
         # Load the dataset
         df = pd.read_csv(input[0])
-        ds = pickle.load(open(input[1], "rb"))
+        ds = Dataset(
+            df,
+            substitutions=dsget("substitutions", default="substitutions"),
+            phenotypes=dsget(f"phenotypes/{wildcards.phenotype}", default=["phenotype"]),
+            errors=dsget("errors", None),
+        )
+
         train = Subset(ds, np.where(df.cv != float(wildcards.cv))[0])
         validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
 
         # Build model and loss
         model = Model(
-            VariationalBasis.fromDataset(ds, cget("K", 8)),
-            Phenotype.fromDataset(ds, cget("K", 8))
+            VariationalBasis.fromDataset(ds, dsget("K", 8)),
+            Phenotype.fromDataset(ds, dsget("K", 8))
         )
 
         model.load_state_dict(torch.load(input[2], "cpu"))
@@ -170,7 +180,7 @@ rule lantern_prediction:
                     model,
                     validation,
                     cuda=CUDA,
-                    size=cget("lantern/prediction/size", default=32),
-                    pbar=cget("lantern/prediction/pbar", default=True)
+                    size=dsget("lantern/prediction/size", default=32),
+                    pbar=dsget("lantern/prediction/pbar", default=True)
                 )
             )
