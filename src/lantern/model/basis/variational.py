@@ -20,10 +20,19 @@ class VariationalBasis(Basis, Variational):
     alpha_prior: Gamma = attr.ib()
 
     @classmethod
-    def fromDataset(cls, ds, K, alpha_0=0.001, beta_0=0.001):
+    def fromDataset(cls, ds, K, alpha_0=0.001, beta_0=0.001, meanEffectsInit=True):
         p = ds.p
+        Wmu = torch.randn(p, K)
+
+        # initialize first dimensions to mean effects
+        if meanEffectsInit:
+            mu = ds.meanEffects()
+            Wmu[:, : mu.shape[1]] = mu
+
+        Wmu = nn.Parameter(Wmu)
+
         return cls(
-            nn.Parameter(torch.randn(p, K)),
+            Wmu,
             nn.Parameter(torch.randn(p, K) - 3),
             nn.Parameter(torch.randn(K)),
             nn.Parameter(torch.randn(K)),
