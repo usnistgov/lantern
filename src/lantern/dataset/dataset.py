@@ -83,6 +83,15 @@ class _Base(TensorDataset):
     def to(self, device):
         self.tensors = [t.to(device) for t in self.tensors]
 
+    def meanEffects(self):
+        """The mean effects of each mutation against each phenotype, returned as a (p x D) tensor
+        """
+
+        X, y = self[: len(self)][:2]
+        sol, _ = torch.lstsq(y, X)
+
+        return sol[: self.p, :]
+
 
 @attr.s()
 class _DataframeDataset:

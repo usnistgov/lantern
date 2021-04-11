@@ -15,7 +15,7 @@ setup(
     name="lantern",
     version="0.1.1a",
     license="NIST",
-    description="Genotype-phenotype landscape interpretable nonparametric models",
+    description="Genotype-phenotype landscape interpretable nonparametric modeling",
     author="Dr. Peter Tonner",
     author_email="peter.tonner@nist.gov",
     url="https://gitlab.nist.gov/ptonner/lantern",
