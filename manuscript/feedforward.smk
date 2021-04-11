@@ -63,9 +63,9 @@ rule ff_cv:
     input:
         "data/processed/{ds}.csv"
     output:
-        "experiments/{ds}/feedforward-K{K,\d+}/cv{cv}/model.pt"
+        "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv}/model.pt"
     run:
-        def cget(pth, default):
+        def dsget(pth, default):
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
         
@@ -73,14 +73,14 @@ rule ff_cv:
         df = pd.read_csv(input[0])
         ds = Dataset(
             df,
-            substitutions=config.get("substitutions", "substitutions"),
-            phenotypes=config.get("phenotypes", ["phenotype"]),
-            errors=config.get("errors", None),
+            substitutions=dsget("substitutions", default="substitutions"),
+            phenotypes=dsget(f"phenotypes/{wildcards.phenotype}", default=["phenotype"]),
+            errors=dsget("errors", None),
         )
 
         # Build model and loss
-        DEPTH = cget("feedforward/depth", default=1)
-        WIDTH = cget("feedforward/width", default=32)
+        DEPTH = wildcards.D
+        WIDTH = wildcards.W
         model = Feedforward(
             p=ds.p, K=int(wildcards.K), D=ds.D,
             depth=DEPTH,
@@ -94,10 +94,10 @@ rule ff_cv:
         # Setup training infrastructure
         train = Subset(ds, np.where(df.cv != float(wildcards.cv))[0])
         validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
-        tloader = DataLoader(train, batch_size=cget("lantern/batch-size", default=128))
-        vloader = DataLoader(validation, batch_size=cget("lantern/batch-size", default=128))
+        tloader = DataLoader(train, batch_size=dsget("feedforward/batch-size", default=128))
+        vloader = DataLoader(validation, batch_size=dsget("feedforward/batch-size", default=128))
 
-        lr = cget("lantern/lr", default=0.001)
+        lr = dsget("feedforward/lr", default=0.001)
         optimizer = Adam(model.parameters(), lr=lr)
 
         mlflow.set_experiment("feedforward cross-validation".format(label=config["label"]))
@@ -105,14 +105,14 @@ rule ff_cv:
         # Run optimization
         with mlflow.start_run() as run:
             mlflow.log_param("dataset", wildcards.ds)
-            mlflow.log_param("model", "lantern")
+            mlflow.log_param("model", "feedforward")
             mlflow.log_param("lr", lr)
             mlflow.log_param("depth", DEPTH)
             mlflow.log_param("width", WIDTH)
             mlflow.log_param("cv", wildcards.cv)
             mlflow.log_param("batch-size", tloader.batch_size)
 
-            pbar = tqdm(range(cget("lantern/epochs", default=100)),)
+            pbar = tqdm(range(dsget("feedforward/epochs", default=100)),)
             best = np.inf
             for e in pbar:
 
@@ -159,17 +159,17 @@ rule ff_prediction:
     input:
         "data/processed/{ds}.csv",
         "data/processed/{ds}.pkl",
-        "experiments/{ds}/feedforward-K{K,\d+}/cv{cv}/model.pt"
+        "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv}/model.pt"
     output:
-        "experiments/{ds}/feedforward-K{K,\d+}/cv{cv}/pred-val.csv"
+        "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv}/pred-val.csv"
     run:
         import pickle
-        def cget(pth, default):
+
+        def dsget(pth, default):
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
         
-
-        CUDA = cget("feedforward/prediction/cuda", default=True)
+        CUDA = dsget("feedforward/prediction/cuda", default=True)
 
         # Load the dataset
         df = pd.read_csv(input[0])
@@ -178,8 +178,8 @@ rule ff_prediction:
         validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
 
         # Build model and loss
-        DEPTH = cget("feedforward/depth", default=1)
-        WIDTH = cget("feedforward/width", default=32)
+        DEPTH = wildcards.D
+        WIDTH = wildcards.W
         model = Feedforward(
             p=ds.p, K=int(wildcards.K), D=ds.D,
             depth=DEPTH,
@@ -208,7 +208,7 @@ rule ff_prediction:
                     model,
                     validation,
                     cuda=CUDA,
-                    size=cget("feedforward/prediction/size", default=1024),
-                    pbar=cget("feedforward/prediction/pbar", default=True)
+                    size=dsget("feedforward/prediction/size", default=1024),
+                    pbar=dsget("feedforward/prediction/pbar", default=True)
                 )
             )
