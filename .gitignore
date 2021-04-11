@@ -1,0 +1,7 @@
+mlruns/
+data/
+.slurm/
+.snakemake/
+gpu-stats*
+__pycache__/
+*.egg-info/
