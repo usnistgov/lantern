@@ -63,7 +63,7 @@ rule ff_cv:
     input:
         "data/processed/{ds}.csv"
     output:
-        "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv}/model.pt"
+        "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv}/model.pt" # note D is depth here
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -158,7 +158,7 @@ rule ff_cv:
 rule ff_prediction:
     input:
         "data/processed/{ds}.csv",
-        "data/processed/{ds}.pkl",
+        "data/processed/{ds}-{phenotype}.pkl",
         "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv}/model.pt"
     output:
         "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv}/pred-val.csv"

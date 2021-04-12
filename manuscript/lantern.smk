@@ -129,7 +129,7 @@ rule lantern_cv:
 rule lantern_prediction:
     input:
         "data/processed/{ds}.csv",
-        "data/processed/{ds}.pkl",
+        "data/processed/{ds}-{phenotype}.pkl",
         "experiments/{ds}-{phenotype}/lantern/cv{cv}/model.pt"
     output:
         "experiments/{ds}-{phenotype}/lantern/cv{cv}/pred-val.csv"
