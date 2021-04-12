@@ -15,6 +15,17 @@ from lantern import Module
 @attr.s(cmp=False)
 class Phenotype(ApproximateGP, Module):
     """A phenotype surface, learned with an approximate GP.
+    
+    :param D: The phenotype dimension
+    :type D: int
+    :param K: The latent effect dimension
+    :type K: int
+    :param mean: The mean function of the GP
+    :type mean: gpytorch.means.Mean
+    :param kernel: The GP kernel function
+    :type kernel: gpytorch.kernels.Kernel
+    :param variational_strategy: The strategy for variational inference
+    :type variational_strategy: gpytorch.variational.VariationalStrategy
     """
 
     D: int = attr.ib()
@@ -58,12 +69,16 @@ class Phenotype(ApproximateGP, Module):
         strat.inducing_points.data[:] = torch.from_numpy(induc).to(device)
 
     def loss(self, *args, **kwargs):
+        """The ELBO of the variational GP approximation.
+        """
         from lantern.loss import ELBO_GP
 
         return ELBO_GP.fromGP(self, *args, **kwargs)
 
     @classmethod
     def fromDataset(cls, ds, *args, **kwargs):
+        """Build a phenotype surface matching a dataset
+        """
 
         return cls.build(ds.D, *args, **kwargs)
 
@@ -81,16 +96,24 @@ class Phenotype(ApproximateGP, Module):
         *args,
         **kwargs
     ):
-        """Build a phenotype surface from a dataset.
+        """Build a phenotype surface object.
 
-        :param ds: Dataset for build a phenotype from.
-        :type ds: lantern.dataset.Dataset
+        :param D: Number of dimensions of the (output) phenotype
+        :type D: int
         :param K: Number of latent dimesions
         :type K: int
         :param Ni: Number of inducing points
-        :type Ni: int
+        :type Ni: int, optional
         :param inducScale: Range to initialize inducing points over (uniform from [-inducScale, inducScale])
-        :type inducScale: float
+        :type inducScale: float, optional
+        :param distribution: The distribution of the variational approximation
+        :type distribution: gpytorch.VariationalDistribution
+        :param mean: Mean function of the GP
+        :type mean: gpytorch.means.Mean, optional
+        :param kernel: The kernel of the GP
+        :type kernel: gpytorch.kernels.Kernel, optional
+        :param learn_inducing_locations: Whether to learn location of inducing points
+        :type learn_inducing_locations: bool, optional
         """
         if D > 1:
             shape = (D, Ni, K)
