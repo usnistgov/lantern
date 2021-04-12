@@ -79,8 +79,8 @@ rule ff_cv:
         )
 
         # Build model and loss
-        DEPTH = wildcards.D
-        WIDTH = wildcards.W
+        DEPTH = int(wildcards.D)
+        WIDTH = int(wildcards.W)
         model = Feedforward(
             p=ds.p, K=int(wildcards.K), D=ds.D,
             depth=DEPTH,
@@ -100,7 +100,7 @@ rule ff_cv:
         lr = dsget("feedforward/lr", default=0.001)
         optimizer = Adam(model.parameters(), lr=lr)
 
-        mlflow.set_experiment("feedforward cross-validation".format(label=config["label"]))
+        mlflow.set_experiment("feedforward cross-validation")
 
         # Run optimization
         with mlflow.start_run() as run:
@@ -178,8 +178,8 @@ rule ff_prediction:
         validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
 
         # Build model and loss
-        DEPTH = wildcards.D
-        WIDTH = wildcards.W
+        DEPTH = int(wildcards.D)
+        WIDTH = int(wildcards.W)
         model = Feedforward(
             p=ds.p, K=int(wildcards.K), D=ds.D,
             depth=DEPTH,
