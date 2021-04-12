@@ -13,3 +13,24 @@ gfp:
       cuda: False
   
   alphabet: ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y","*"]
+
+laci:
+  label: LacI
+  
+  phenotypes:
+    joint: ["ec50-norm", "ginf-norm"]
+    ec50: ["ec50-norm"]
+    ginf: ["ginf-norm"]
+  
+  noise:
+    joint: ["ec50-norm-var", "ginf-norm-var"]
+    ec50: ["ec50-norm-var"]
+    ginf: ["ginf-norm-var"]
+  
+  lantern:
+    prediction:
+      cuda: False
+  
+  feedforward:
+    prediction:
+      cuda: False
