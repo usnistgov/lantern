@@ -8,9 +8,9 @@ rule cvr2:
     """
 
     input:
-        gfp_lantern=expand("experiments/gfp/lantern/cv{cv}/pred-val.csv", cv=range(10)),
-        gfp_ff_k1=expand("experiments/gfp/feedforward-K1/cv{cv}/pred-val.csv", cv=range(10)),
-        gfp_ff_k8=expand("experiments/gfp/feedforward-K8/cv{cv}/pred-val.csv", cv=range(10)),
+        gfp_lantern=expand("experiments/gfp-brightness/lantern/cv{cv}/pred-val.csv", cv=range(10)),
+        gfp_ff_k1=expand("experiments/gfp-brightness/feedforward-K1-D1-W32/cv{cv}/pred-val.csv", cv=range(10)),
+        gfp_ff_k8=expand("experiments/gfp-brightness/feedforward-K8-D1-W32/cv{cv}/pred-val.csv", cv=range(10)),
         gfp_globalep=expand("experiments/gfp-brightness/globalep/cv{cv}/pred-val.csv", cv=range(10)),
     output:
         "figures/cvr2.png"
