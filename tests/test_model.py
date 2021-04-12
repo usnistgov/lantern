@@ -19,7 +19,7 @@ def test_model_validator():
             return 3
 
     with pytest.raises(ValueError):
-        Model(DummyBasis(), Phenotype(4, torch.randn(4, 100, 5)))
+        Model(DummyBasis(), Phenotype.build(4, 5,))
 
 
 def test_forward():
@@ -34,7 +34,7 @@ def test_forward():
         Gamma(0.001, 0.001),
     )
 
-    m = Model(vb, Phenotype(4, torch.randn(4, 100, 3)))
+    m = Model(vb, Phenotype.build(4, K, Ni=100))
     m.eval()
 
     X = torch.randn(30, 10)
@@ -56,7 +56,7 @@ def test_loss():
         Gamma(0.001, 0.001),
     )
 
-    m = Model(vb, Phenotype(4, torch.randn(4, 100, 3)))
+    m = Model(vb, Phenotype.build(4, 3, Ni=100))
     loss = m.loss(N=1000)
 
     X = torch.randn(30, 10)

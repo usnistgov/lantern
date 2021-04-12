@@ -1,66 +1,52 @@
+import attr
 from gpytorch.models import ApproximateGP
 from gpytorch.variational import CholeskyVariationalDistribution
 from gpytorch.variational import VariationalStrategy
 from gpytorch.distributions import MultivariateNormal
 from gpytorch.variational import IndependentMultitaskVariationalStrategy
-from gpytorch.means import ConstantMean
-from gpytorch.kernels import ScaleKernel, RQKernel
+from gpytorch.means import ConstantMean, Mean
+from gpytorch.kernels import ScaleKernel, RQKernel, Kernel
 import torch
 
 
-class Phenotype(ApproximateGP):
+from lantern import Module
+
+
+@attr.s(cmp=False)
+class Phenotype(ApproximateGP, Module):
     """A phenotype surface, learned with an approximate GP.
+    
+    :param D: The phenotype dimension
+    :type D: int
+    :param K: The latent effect dimension
+    :type K: int
+    :param mean: The mean function of the GP
+    :type mean: gpytorch.means.Mean
+    :param kernel: The GP kernel function
+    :type kernel: gpytorch.kernels.Kernel
+    :param variational_strategy: The strategy for variational inference
+    :type variational_strategy: gpytorch.variational.VariationalStrategy
     """
 
-    def __init__(
-        self,
-        D,
-        inducing_points,
-        strategy=CholeskyVariationalDistribution,
-        mean=ConstantMean,
-        learn_inducing_locations=True,
-    ):
-        size = torch.Size([])
-        if D > 1:
-            size = torch.Size([D])
+    D: int = attr.ib()
+    K: int = attr.ib()
 
-            if len(inducing_points.shape) != 3:
-                raise ValueError("Should have D x I x K inducing points!")
+    mean: Mean = attr.ib()
+    kernel: Kernel = attr.ib()
 
-        variational_distribution = strategy(inducing_points.size(-2), batch_shape=size)
-        variational_strategy = VariationalStrategy(
-            self,
-            inducing_points,
-            variational_distribution,
-            learn_inducing_locations=learn_inducing_locations,
-        )
+    variational_strategy: VariationalStrategy = attr.ib()
 
-        if D > 1:
-            variational_strategy = IndependentMultitaskVariationalStrategy(
-                variational_strategy, num_tasks=D
+    def __attrs_post_init__(self):
+
+        # hack to deal with circular inits
+        if self.D == 1:
+            # self.variational_strategy.model = self
+            object.__setattr__(self.variational_strategy, "model", self)
+        else:
+            # self.variational_strategy.base_variational_strategy.model = self
+            object.__setattr__(
+                self.variational_strategy.base_variational_strategy, "model", self
             )
-
-        super(Phenotype, self).__init__(variational_strategy)
-
-        self.D = D
-        self.K = inducing_points.size(-1)
-        self.mean = mean(batch_shape=size)
-
-        # rq component
-        if self.D > 1:
-            kernel = RQKernel(ard_num_dims=self.K, batch_shape=torch.Size([self.D]))
-        else:
-            kernel = RQKernel(ard_num_dims=self.K)
-        if kernel.has_lengthscale:
-            kernel.raw_lengthscale.requires_grad = False
-
-        # scale component
-        if self.D > 1:
-            kernel = ScaleKernel(kernel, batch_shape=torch.Size([self.D]))
-        else:
-            kernel = ScaleKernel(kernel)
-
-        self.kernel = kernel
 
     def forward(self, z):
         mean_x = self.mean(z)
@@ -83,29 +69,93 @@ class Phenotype(ApproximateGP):
         strat.inducing_points.data[:] = torch.from_numpy(induc).to(device)
 
     def loss(self, *args, **kwargs):
+        """The ELBO of the variational GP approximation.
+        """
         from lantern.loss import ELBO_GP
 
         return ELBO_GP.fromGP(self, *args, **kwargs)
 
     @classmethod
-    def fromDataset(cls, ds, K, Ni=800, inducScale=10, *args, **kwargs):
-        """Build a phenotype surface from a dataset.
+    def fromDataset(cls, ds, *args, **kwargs):
+        """Build a phenotype surface matching a dataset
+        """
 
-        :param ds: Dataset for build a phenotype from.
-        :type ds: lantern.dataset.Dataset
+        return cls.build(ds.D, *args, **kwargs)
+
+    @classmethod
+    def build(
+        cls,
+        D,
+        K,
+        Ni=800,
+        inducScale=10,
+        distribution=CholeskyVariationalDistribution,
+        mean=None,
+        kernel=None,
+        learn_inducing_locations=True,
+        *args,
+        **kwargs
+    ):
+        """Build a phenotype surface object.
+
+        :param D: Number of dimensions of the (output) phenotype
+        :type D: int
         :param K: Number of latent dimesions
         :type K: int
         :param Ni: Number of inducing points
-        :type Ni: int
+        :type Ni: int, optional
         :param inducScale: Range to initialize inducing points over (uniform from [-inducScale, inducScale])
-        :type inducScale: float
+        :type inducScale: float, optional
+        :param distribution: The distribution of the variational approximation
+        :type distribution: gpytorch.VariationalDistribution
+        :param mean: Mean function of the GP
+        :type mean: gpytorch.means.Mean, optional
+        :param kernel: The kernel of the GP
+        :type kernel: gpytorch.kernels.Kernel, optional
+        :param learn_inducing_locations: Whether to learn location of inducing points
+        :type learn_inducing_locations: bool, optional
         """
-        D = ds.D
         if D > 1:
             shape = (D, Ni, K)
         else:
             shape = (Ni, K)
 
-        return cls(
-            D, -inducScale + 2 * inducScale * torch.rand(*shape), *args, **kwargs
+        inducing_points = -inducScale + 2 * inducScale * torch.rand(*shape)
+
+        size = torch.Size([])
+        if D > 1:
+            size = torch.Size([D])
+
+            if len(inducing_points.shape) != 3:
+                raise ValueError("Should have D x I x K inducing points!")
+
+        variational_distribution = distribution(
+            inducing_points.size(-2), batch_shape=size
         )
+        strat = VariationalStrategy(
+            None,  # this shouldn't actually be needed and will get filled in after init
+            inducing_points,
+            variational_distribution,
+            learn_inducing_locations=learn_inducing_locations,
+        )
+        if D > 1:
+            strat = IndependentMultitaskVariationalStrategy(strat, num_tasks=D)
+
+        if mean is None:
+            mean = ConstantMean(batch_shape=size)
+        if kernel is None:
+            # rq component
+            if D > 1:
+                kernel = RQKernel(ard_num_dims=K, batch_shape=torch.Size([D]))
+            else:
+                kernel = RQKernel(ard_num_dims=K)
+            if kernel.has_lengthscale:
+                kernel.raw_lengthscale.requires_grad = False
+
+            # scale component
+            if D > 1:
+                kernel = ScaleKernel(kernel, batch_shape=torch.Size([D]))
+            else:
+                kernel = ScaleKernel(kernel)
+
+        return cls(D, K, mean, kernel, strat, *args, **kwargs)
