@@ -204,3 +204,96 @@ rule laci_data:
         df["dummy-var"] = 0.0
 
         df[filter_cols + ["cv", "dummy-var"]].to_csv(output[0])
+
+rule covid_raw:
+    output:
+        "data/raw/covid-expression.csv",
+        "data/raw/covid-binding.csv"
+    shell:
+        """
+        wget -O data/raw/covid-expression.csv "https://media.githubusercontent.com/media/jbloomlab/SARS-CoV-2-RBD_DMS/master/results/expression_meanFs/expression_meanFs.csv"
+        wget -O data/raw/covid-binding.csv "https://media.githubusercontent.com/media/jbloomlab/SARS-CoV-2-RBD_DMS/master/results/binding_Kds/binding_Kds.csv"
+        """
+
+rule covid_data:
+    input:
+        "data/raw/covid-expression.csv",
+        "data/raw/covid-binding.csv"
+    output:
+        "data/processed/covid-expression.csv",
+        "data/processed/covid-binding.csv",
+        "data/processed/covid-joint.csv"
+    run:
+        import numpy as np
+        import pandas as pd
+        from sklearn.model_selection import KFold
+
+        exp = pd.read_csv("data/raw/covid-expression.csv")
+        bind = pd.read_csv("data/raw/covid-binding.csv")
+
+        # https://github.com/jbloomlab/SARS-CoV-2-RBD_DMS/blob/master/results/summary/global_epistasis_expression.md
+        exp.rename(
+            columns={"delta_ML_meanF": "func_score", "var_ML_meanF": "func_score_var"},
+            inplace=True,
+        )
+        exp = exp[pd.notnull(exp["func_score"])]
+        exp.fillna("", inplace=True)
+        exp["aa_substitutions"] = exp["aa_substitutions"].str.replace(" ", ":")
+
+        # fix 0 variance
+        exp.func_score_var.replace(0, 0.1, inplace=True)
+
+        # https://github.com/jbloomlab/SARS-CoV-2-RBD_DMS/blob/master/results/summary/global_epistasis_binding.md
+        bind.rename(columns={"log10Ka": "func_score"}, inplace=True)
+        bind["func_score_var"] = bind["log10SE"] ** 2
+        bind = bind[pd.notnull(bind["func_score"])]
+        bind.fillna("", inplace=True)
+        bind["aa_substitutions"] = bind["aa_substitutions"].str.replace(" ", ":")
+
+        # WT normalize
+        def normalize(df):
+
+            mu = df.func_score.mean()
+            std = df.func_score.std()
+
+            df["func_score_norm"] = (df["func_score"] - mu) / std
+            df["func_score_var_norm"] = (df["func_score_var"]) / std / std
+
+            mu = df[df.n_aa_substitutions == 0].func_score.mean()
+
+            df["func_score_centered"] = (df["func_score"] - mu) / std
+
+        normalize(exp)
+        normalize(bind)
+
+        # Combine
+        mrg = pd.merge(
+            exp,
+            bind,
+            on=[
+                "library",
+                "target",
+                "barcode",
+                "variant_call_support",
+                "variant_class",
+                "aa_substitutions",
+                "n_aa_substitutions",
+            ],
+            suffixes=("_exp", "_bind"),
+        )
+
+        # Cross validation
+        def addCV(df):
+
+            cv = KFold(10, shuffle=True, random_state=19401224)
+            df["cv"] = np.nan
+            for i, (cvtr, cvts) in enumerate(cv.split(np.arange(len(df)))):
+                df["cv"].iloc[cvts] = i
+
+        addCV(exp)
+        addCV(bind)
+        addCV(mrg)
+
+        exp.to_csv("data/processed/covid-expression.csv", index=False)
+        bind.to_csv("data/processed/covid-binding.csv", index=False)
+        mrg.to_csv("data/processed/covid-joint.csv", index=False)
