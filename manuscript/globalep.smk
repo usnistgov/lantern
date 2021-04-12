@@ -16,8 +16,12 @@ rule ge_cv:
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
 
-        phenotype = cget("phenotypes")[wildcards.phenotype].get("col", "phenotype")
-        noise = cget("phenotypes")[wildcards.phenotype].get("noise", None)
+        # phenotype = cget("phenotypes")[wildcards.phenotype].get("col", "phenotype")
+        phenotype = cget(f"phenotypes/{wildcards.phenotype}", default=["phenotype"])[0]
+        # noise = cget("phenotypes")[wildcards.phenotype].get("noise", None)
+        noise = cget(f"errors/{wildcards.phenotype}", default=None)
+        if isinstance(noise, list):
+            noise = noise[0]
 
         df = pd.read_csv(input[0])
         df = df.assign(
