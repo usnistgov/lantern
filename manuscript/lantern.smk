@@ -37,7 +37,7 @@ rule lantern_cv:
             df,
             substitutions=dsget("substitutions", default="substitutions"),
             phenotypes=dsget(f"phenotypes/{wildcards.phenotype}", default=["phenotype"]),
-            errors=dsget("errors", None),
+            errors=dsget(f"errors/{wildcards.phenotype}", None),
         )
 
         # Build model and loss
@@ -46,7 +46,7 @@ rule lantern_cv:
             Phenotype.fromDataset(ds, dsget("K", 8))
         )
 
-        loss = model.loss(N=len(ds))
+        loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
 
         if dsget("cuda", True):
             model = model.cuda()
@@ -65,66 +65,74 @@ rule lantern_cv:
         mlflow.set_experiment("lantern cross-validation")
 
         # Run optimization
-        with mlflow.start_run() as run:
-            mlflow.log_param("dataset", wildcards.ds)
-            mlflow.log_param("model", "lantern")
-            mlflow.log_param("lr", dsget("lantern/lr", default=0.01))
-            mlflow.log_param("cv", wildcards.cv)
-            mlflow.log_param("batch-size", tloader.batch_size)
+        try:
+            with mlflow.start_run() as run:
+                mlflow.log_param("dataset", wildcards.ds)
+                mlflow.log_param("model", "lantern")
+                mlflow.log_param("lr", dsget("lantern/lr", default=0.01))
+                mlflow.log_param("cv", wildcards.cv)
+                mlflow.log_param("batch-size", tloader.batch_size)
 
-            pbar = tqdm(range(dsget("lantern/epochs", default=5000)),)
-            best = np.inf
-            for e in pbar:
+                pbar = tqdm(range(dsget("lantern/epochs", default=5000)),)
+                best = np.inf
+                for e in pbar:
 
-                # logging of loss values
-                tloss = 0
-                vloss = 0
+                    # logging of loss values
+                    tloss = 0
+                    vloss = 0
 
-                # go through minibatches
-                for btch in tloader:
-                    optimizer.zero_grad()
-                    yhat = model(btch[0])
-                    lss = loss(yhat, *btch[1:])
-
-                    total = sum(lss.values())
-                    total.backward()
-
-                    optimizer.step()
-                    tloss += total.item()
-
-                # validation minibatches
-                for btch in vloader:
-                    with torch.no_grad():
+                    # go through minibatches
+                    for btch in tloader:
+                        optimizer.zero_grad()
                         yhat = model(btch[0])
                         lss = loss(yhat, *btch[1:])
 
                         total = sum(lss.values())
-                        vloss += total.item()
+                        total.backward()
 
-                # update log
-                pbar.set_postfix(
-                    train=tloss / len(tloader),
-                    validation=vloss / len(vloader) if len(vloader) else 0,
-                )
+                        optimizer.step()
+                        tloss += total.item()
 
-                mlflow.log_metric("training-loss", tloss / len(tloader), step=e)
-                mlflow.log_metric("validation-loss", vloss / len(vloader), step=e)
+                    # validation minibatches
+                    for btch in vloader:
+                        with torch.no_grad():
+                            yhat = model(btch[0])
+                            lss = loss(yhat, *btch[1:])
 
-                qalpha = model.basis.qalpha(detach=True)
-                for k in range(model.basis.K):
-                    mlflow.log_metric(f"basis-variance-{k}", 1 / qalpha.mean[k].item(), step=e)
+                            total = sum(lss.values())
+                            vloss += total.item()
 
-            # Save training results
-            torch.save(model.state_dict(), output[0])
-            torch.save(loss.state_dict(), output[1])
+                    # update log
+                    pbar.set_postfix(
+                        train=tloss / len(tloader),
+                        validation=vloss / len(vloader) if len(vloader) else 0,
+                    )
 
-            # also save this specific version by id
+                    mlflow.log_metric("training-loss", tloss / len(tloader), step=e)
+                    mlflow.log_metric("validation-loss", vloss / len(vloader), step=e)
+
+                    qalpha = model.basis.qalpha(detach=True)
+                    for k in range(model.basis.K):
+                        mlflow.log_metric(f"basis-variance-{k}", 1 / qalpha.mean[k].item(), step=e)
+
+                # Save training results
+                torch.save(model.state_dict(), output[0])
+                torch.save(loss.state_dict(), output[1])
+
+                # also save this specific version by id
+                base = os.path.join(os.path.dirname(output[0]), "runs", run.info.run_id)
+                os.makedirs(base, exist_ok=True)
+                torch.save(model.state_dict(), os.path.join(base, "model.pt"))
+                mlflow.log_artifact(os.path.join(base, "model.pt"), "model")
+                torch.save(loss.state_dict(), os.path.join(base, "loss.pt"))
+                mlflow.log_artifact(os.path.join(base, "loss.pt"), "loss")
+
+        except Exception as e:
             base = os.path.join(os.path.dirname(output[0]), "runs", run.info.run_id)
             os.makedirs(base, exist_ok=True)
-            torch.save(model.state_dict(), os.path.join(base, "model.pt"))
-            mlflow.log_artifact(os.path.join(base, "model.pt"), "model")
-            torch.save(loss.state_dict(), os.path.join(base, "loss.pt"))
-            mlflow.log_artifact(os.path.join(base, "loss.pt"), "loss")
+            torch.save(model.state_dict(), os.path.join(base, "model-error.pt"))
+            torch.save(loss.state_dict(), os.path.join(base, "loss-error.pt"))
+            raise e
 
 rule lantern_prediction:
     input:

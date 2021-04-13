@@ -1,3 +1,29 @@
+rule ds_pkl:
+    "Generate a pickled Dataset object for corresponding dataset and phenotype."
+
+    input:
+        "data/processed/{ds}.csv"
+    output:
+        "data/processed/{ds}-{phenotype}.pkl"
+    run:
+        import pickle
+        import pandas as pd
+        from lantern.dataset import Dataset
+
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+        
+        df = pd.read_csv(input[0])
+        ds = Dataset(
+            df,
+            substitutions=dsget("substitutions", default="substitutions"),
+            phenotypes=dsget(f"phenotypes/{wildcards.phenotype}", default=["phenotype"]),
+            errors=dsget(f"errors/{wildcards.phenotype}", None),
+        )
+
+        pickle.dump(ds, open(output[0], "wb"))
+
 
 rule gfp_raw:
     output:
@@ -56,32 +82,6 @@ rule gfp_pkl:
 
         pickle.dump(ds, open(output[0], "wb"))
 
-
-rule ds_pkl:
-    "Generate a pickled Dataset object for corresponding dataset and phenotype."
-
-    input:
-        "data/processed/{ds}.csv"
-    output:
-        "data/processed/{ds}-{phenotype}.pkl"
-    run:
-        import pickle
-        import pandas as pd
-        from lantern.dataset import Dataset
-
-        def dsget(pth, default):
-            """Get the configuration for the specific dataset"""
-            return get(config, f"{wildcards.ds}/{pth}", default=default)
-        
-        df = pd.read_csv(input[0])
-        ds = Dataset(
-            df,
-            substitutions=dsget("substitutions", default="substitutions"),
-            phenotypes=dsget(f"phenotypes/{wildcards.phenotype}", default=["phenotype"]),
-            errors=dsget(f"errors/{wildcards.phenotype}", None),
-        )
-
-        pickle.dump(ds, open(output[0], "wb"))
 
 rule laci_data:
     input:
@@ -220,9 +220,9 @@ rule covid_data:
         "data/raw/covid-expression.csv",
         "data/raw/covid-binding.csv"
     output:
-        "data/processed/covid-expression.csv",
-        "data/processed/covid-binding.csv",
-        "data/processed/covid-joint.csv"
+        "data/processed/covid_expression.csv",
+        "data/processed/covid_binding.csv",
+        "data/processed/covid.csv"
     run:
         import numpy as np
         import pandas as pd
@@ -294,6 +294,6 @@ rule covid_data:
         addCV(bind)
         addCV(mrg)
 
-        exp.to_csv("data/processed/covid-expression.csv", index=False)
-        bind.to_csv("data/processed/covid-binding.csv", index=False)
-        mrg.to_csv("data/processed/covid-joint.csv", index=False)
+        exp.to_csv("data/processed/covid_expression.csv", index=False)
+        bind.to_csv("data/processed/covid_binding.csv", index=False)
+        mrg.to_csv("data/processed/covid.csv", index=False)

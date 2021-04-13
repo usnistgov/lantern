@@ -22,10 +22,31 @@ laci:
     ec50: ["ec50-norm"]
     ginf: ["ginf-norm"]
   
-  noise:
-    joint: ["ec50-norm-var", "ginf-norm-var"]
+  errors:
+    joint: ["ec50-norm-var", "dummy-var"]
     ec50: ["ec50-norm-var"]
-    ginf: ["ginf-norm-var"]
+  
+  lantern:
+    prediction:
+      cuda: False
+  
+  feedforward:
+    prediction:
+      cuda: False
+
+covid:
+  label: SARS-CoV-2
+  substitutions: aa_substitutions
+  
+  phenotypes:
+    joint: ["func_score_norm_exp", "func_score_norm_bind"]
+    exp: ["func_score_norm_exp"]
+    bind: ["func_score_norm_bind"]
+  
+  errors:
+    joint: ["func_score_var_norm_exp", "func_score_var_norm_bind"]
+    exp: ["func_score_var_norm_exp"]
+    bind: ["func_score_var_norm_bind"]
   
   lantern:
     prediction:

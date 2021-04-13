@@ -75,7 +75,7 @@ rule ff_cv:
             df,
             substitutions=dsget("substitutions", default="substitutions"),
             phenotypes=dsget(f"phenotypes/{wildcards.phenotype}", default=["phenotype"]),
-            errors=dsget("errors", None),
+            errors=dsget(f"errors/{wildcards.phenotype}", None),
         )
 
         # Build model and loss
