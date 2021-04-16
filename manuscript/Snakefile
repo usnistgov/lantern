@@ -1,24 +1,84 @@
 configfile: "config.yaml"
 
+DATASETS = [
+    "gfp-brightness",
+    "laci-ec50",
+    "laci-ginf",
+    "laci-joint",
+    "covid-exp",
+    "covid-bind",
+    "covid-joint",
+]
+
+TORCH_MODELS = [
+    "lantern",
+    "feedforward-K1-D1-W32",
+    "feedforward-K8-D1-W32",
+]
+
+
 include: "data.smk"
 include: "lantern.smk"
 include: "feedforward.smk"
 include: "globalep.smk"
 include: "figures.smk"
 
-rule models:
+rule data:
+    input:
+        expand("data/processed/{ds}.pkl", ds=DATASETS)
+
+rule train_ge:
     """
     Generate models (warning: computation intensive!)
     """
     input:
-        expand("experiments/gfp/lantern/cv{cv}/model.pt", cv=range(10)),
-        expand("experiments/gfp/lantern/cv{cv}/pred-val.csv", cv=range(10)),
-        expand("experiments/gfp/feedforward-K8/cv{cv}/model.pt", cv=range(10)),
-        expand("experiments/gfp/feedforward-K1/cv{cv}/model.pt", cv=range(10)),
-        expand("experiments/gfp/feedforward-K8/cv{cv}/pred-val.csv", cv=range(10)),
-        expand("experiments/gfp/feedforward-K1/cv{cv}/pred-val.csv", cv=range(10)),
-        expand("experiments/gfp-brightness/globalep/cv{cv}/pred-val.csv", cv=range(10)),
+        expand("experiments/{dataset}/globalep/cv{cv}/model.pkl", cv=range(10), dataset=DATASETS),
 
+rule train_ff:
+    """
+    Generate models (warning: computation intensive!)
+    """
+    input:
+        expand("experiments/{dataset}/{model}/cv{cv}/model.pt", cv=range(10), model=["feedforward-K1-D1-W32", "feedforward-K8-D1-W32",], dataset=DATASETS),
+
+rule train_torch:
+    """
+    Generate torch-based models (warning: computation intensive!)
+    """
+    input:
+        expand("experiments/{dataset}/{model}/cv{cv}/model.pt", cv=range(10), model=TORCH_MODELS, dataset=DATASETS),
+        expand("experiments/{dataset}/lantern/full/model.pt", dataset=["gfp-brightness", "laci-joint", "covid-joint"]),
+
+    
+
+rule train:
+    """
+    Generate models (warning: computation intensive!)
+    """
+    input:
+        expand("experiments/{dataset}/{model}/cv{cv}/model.pt", cv=range(10), model=TORCH_MODELS, dataset=DATASETS),
+        expand("experiments/{dataset}/globalep/cv{cv}/model.pkl", cv=range(10), dataset=DATASETS),
+
+rule predict_torch:
+    """
+    Generate model predictions
+    """
+    input:
+        expand("experiments/{dataset}/{model}/cv{cv}/pred-val.csv", cv=range(10), model=TORCH_MODELS, dataset=DATASETS),
+
+rule predict_ge:
+    """
+    Generate model predictions
+    """
+    input:
+        expand("experiments/{dataset}/globalep/cv{cv}/pred-val.csv", cv=range(10), dataset=DATASETS)
+
+rule predict:
+    """
+    Generate model predictions
+    """
+    input:
+        expand("experiments/{dataset}/{model}/cv{cv}/pred-val.csv", cv=range(10), model=TORCH_MODELS + ["globalep"], dataset=DATASETS),
 
 rule figures:
     """
@@ -26,7 +86,7 @@ rule figures:
     """
     input:
         "figures/cvr2.png",
-        "figures/gfp/surface.png",
+        #"figures/gfp/surface.png",
 
     shell:
         "tar -czf figures.tar.gz figures/*"

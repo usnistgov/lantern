@@ -1,3 +1,4 @@
+from glob import glob
 import pandas as pd
 from plotnine import *
 from sklearn.metrics import r2_score, mean_squared_error
@@ -8,24 +9,55 @@ rule cvr2:
     """
 
     input:
-        gfp_lantern=expand("experiments/gfp-brightness/lantern/cv{cv}/pred-val.csv", cv=range(10)),
-        gfp_ff_k1=expand("experiments/gfp-brightness/feedforward-K1-D1-W32/cv{cv}/pred-val.csv", cv=range(10)),
-        gfp_ff_k8=expand("experiments/gfp-brightness/feedforward-K8-D1-W32/cv{cv}/pred-val.csv", cv=range(10)),
-        gfp_globalep=expand("experiments/gfp-brightness/globalep/cv{cv}/pred-val.csv", cv=range(10)),
+        expand("experiments/{dataset}/{model}/cv{cv}/pred-val.csv", cv=range(10), model=TORCH_MODELS+["globalep"], dataset=DATASETS)
+
     output:
         "figures/cvr2.png"
     run:
         scores = None
         metric = r2_score
 
-        for ds, model, pths, p, noiseless in [
-                ("avGFP", "lantern", input.gfp_lantern, 0, True),
-                ("avGFP", "NN (K=1)", input.gfp_ff_k1, 0, True),
-                ("avGFP", "NN (K=8)", input.gfp_ff_k8, 0, True),
-                ("avGFP", "I-spline", input.gfp_globalep, 0, True),
+        for dlabel, mlabel, ds, model, p, noiseless in [
+
+                ("avGFP brightness", "LANTERN", "gfp-brightness", "lantern", 0, True),
+                ("avGFP brightness", "NN (K=1)", "gfp-brightness", "feedforward-K1-D1-W32", 0, True),
+                ("avGFP brightness", "NN (K=8)", "gfp-brightness", "feedforward-K8-D1-W32", 0, True),
+                ("avGFP brightness", "I-spline", "gfp-brightness", "globalep", 0, True),
+
+                ("LacI $\mathrm{EC}_{50}$", "LANTERN", "laci-ec50", "lantern", 0, False),
+                ("LacI $\mathrm{EC}_{50}$", "LANTERN (joint)", "laci-joint", "lantern", 0, False),
+                ("LacI $\mathrm{EC}_{50}$", "NN (K=1)", "laci-ec50", "feedforward-K1-D1-W32", 0, False),
+                ("LacI $\mathrm{EC}_{50}$", "NN (K=8)", "laci-ec50", "feedforward-K8-D1-W32", 0, False),
+                ("LacI $\mathrm{EC}_{50}$", "I-spline", "laci-ec50", "globalep", 0, False),
+
+                ("LacI $\mathrm{G}_{\infty}$", "LANTERN", "laci-ginf", "lantern", 0, True),
+                ("LacI $\mathrm{G}_{\infty}$", "LANTERN (joint)", "laci-joint", "lantern", 1, True),
+                ("LacI $\mathrm{G}_{\infty}$", "NN (K=1)", "laci-ginf", "feedforward-K1-D1-W32", 0, True),
+                ("LacI $\mathrm{G}_{\infty}$", "NN (K=8)", "laci-ginf", "feedforward-K8-D1-W32", 0, True),
+                ("LacI $\mathrm{G}_{\infty}$", "I-spline", "laci-ginf", "globalep", 0, True),
+
+                ("SARS-CoV-2 $K_d$", "LANTERN", "covid-bind", "lantern", 0, False),
+                ("SARS-CoV-2 $K_d$", "LANTERN (joint)", "covid-joint", "lantern", 1, False),
+                ("SARS-CoV-2 $K_d$", "NN (K=1)", "covid-bind", "feedforward-K1-D1-W32", 0, False),
+                ("SARS-CoV-2 $K_d$", "NN (K=8)", "covid-bind", "feedforward-K8-D1-W32", 0, False),
+                ("SARS-CoV-2 $K_d$", "I-spline", "covid-bind", "globalep", 0, False),
+
+                ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "LANTERN", "covid-exp", "lantern", 0, False),
+                ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "LANTERN (joint)", "covid-joint", "lantern", 0, False),
+                ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "NN (K=1)", "covid-exp", "feedforward-K1-D1-W32", 0, False),
+                ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "NN (K=8)", "covid-exp", "feedforward-K8-D1-W32", 0, False),
+                ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "I-spline", "covid-exp", "globalep", 0, False),
+
         ]:
+            pths = expand(
+                "experiments/{dataset}/{model}/cv{cv}/pred-val.csv",
+                cv=range(10),
+                model=model,
+                dataset=ds
+            )
+
             _scores = pd.concat([pd.read_csv(pth) for pth in pths])
-            if model == "I-spline":
+            if mlabel == "I-spline":
                 _scores = (
                     _scores.groupby("cv")
                     .apply(
@@ -50,7 +82,7 @@ rule cvr2:
                     .to_frame("metric")
                 )
         
-            _scores = _scores.assign(method=model, dataset=ds)
+            _scores = _scores.assign(method=mlabel, dataset=dlabel)
             if scores is None:
                 scores = _scores
             else:
@@ -62,13 +94,14 @@ rule cvr2:
                 "I-spline",
                 "NN (K=1)",
                 "NN (K=8)",
-                "lantern",
+                "LANTERN",
+                "LANTERN (joint)",
             ]),
             # dataset=scores.dataset.astype("category").cat.reorder_categories(dsets),
         )
 
         # make the plot
-        ncol = 1
+        ncol = 5
         plot = (
             ggplot(scores)
             + aes(x="factor(method)", y="metric", fill="factor(method)")
@@ -77,7 +110,7 @@ rule cvr2:
             + facet_wrap("dataset", scales="free_y", ncol=ncol)
             + theme(
                 subplots_adjust={"wspace": 0.45},
-                figure_size=(3, 3),
+                figure_size=(15, 3),
                 dpi=300,
             )
             + guides(fill=guide_legend(title=""))
