@@ -39,6 +39,8 @@ class Tokenizer:
         _tokens = list(
             set([sub for variant in substitutions for sub in variant.split(delim)])
         )
+        if "" in _tokens:
+            _tokens.remove("")
 
         # get regex matches
         m = re.compile(regex)
@@ -95,6 +97,9 @@ class Tokenizer:
         """
         tok = torch.zeros(len(s), self.p)
         for i, ss in enumerate(s):
+            if ss == "":
+                continue
+
             for t in ss.split(self.delim):
                 tok[i, self[t]] = 1
 

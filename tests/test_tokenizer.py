@@ -4,6 +4,21 @@ import torch
 from lantern.dataset import Tokenizer
 
 
+def test_empty_string():
+
+    variants = [
+        "a1b",
+        "",
+    ]
+
+    tok = Tokenizer.fromVariants(variants)
+    assert tok.p == 1
+    assert "a1b" in tok.tokens
+
+    assert sum(tok.tokenize("a1b")) == 1
+    assert sum(tok.tokenize("")) == 0
+
+
 def test_base_tokenizer():
 
     variants = ["a1b", "c2d", "e3f", "e3f:a1b", "a1b:e3f"]
