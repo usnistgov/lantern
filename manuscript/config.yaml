@@ -55,3 +55,27 @@ covid:
   feedforward:
     prediction:
       cuda: True
+
+figures:
+  surface:
+    gfp-brightness:
+      brightness:
+        raw: "medianBrightness"
+
+    laci-joint:
+      ec50:
+        raw: "ec50"
+        log: True
+
+      ginf:
+        raw: "ginf"
+        log: True
+        p: 1
+
+    covid-joint:
+      exp:
+        raw: "func_score_exp"
+
+      bind:
+        raw: "func_score_bind"
+        p: 1
