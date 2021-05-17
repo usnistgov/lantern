@@ -15,7 +15,6 @@ from lantern.dataset.tokenizer import Tokenizer
 class _Base(TensorDataset):
     """Base genotype-phenotype dataset class, shuttling a pandas dataframe
     to a TensorDataset.
-
     """
 
     substitutions: str = attr.ib(default="substitutions")
@@ -104,6 +103,7 @@ class _DataframeDataset:
 @attr.s()
 class Dataset(_DataframeDataset, _Base):
     """The runtime option for datasets, taking a dataframe as the first argument.
+    
     """
 
     pass
