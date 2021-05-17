@@ -27,10 +27,14 @@ include: "smk/globalep.smk"
 import util
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from plotnine import *
+from plotnine.options import *
+
 
 include: "smk/figures/cvr2.smk"
 include: "smk/figures/calibration.smk"
 include: "smk/figures/surface.smk"
+include: "smk/figures/sample-size.smk"
 
 rule data:
     input:
@@ -58,6 +62,13 @@ rule train_torch:
         expand("experiments/{dataset}/{model}/cv{cv}/model.pt", cv=range(10), model=TORCH_MODELS, dataset=DATASETS),
         expand("experiments/{dataset}/lantern/full/model.pt", dataset=["gfp-brightness", "laci-joint", "covid-joint"]),
         expand("experiments/{dataset}/lantern/cv{cv}-n5000/model.pt", dataset=DATASETS, cv=range(10)),
+        expand("experiments/{dataset}/lantern/cv{cv}-n10000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
+        expand("experiments/{dataset}/lantern/cv{cv}-n15000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
+        expand("experiments/{dataset}/lantern/cv{cv}-n20000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
+        expand("experiments/{dataset}/lantern/cv{cv}-n25000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
+        expand("experiments/{dataset}/lantern/cv{cv}-n30000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
+        expand("experiments/{dataset}/lantern/cv{cv}-n35000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
+        expand("experiments/{dataset}/lantern/cv{cv}-n40000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
 
     
 
@@ -103,6 +114,7 @@ rule figures:
         "figures/covid-joint/exp/surface.png",
         "figures/covid-joint/bind/surface.png",
         "figures/gfp-brightness/brightness/surface.png",
+        "figures/laci-joint/sample-size.png",
 
     shell:
         "tar -czf figures.tar.gz figures/*"
