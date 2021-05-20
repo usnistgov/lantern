@@ -4,7 +4,6 @@ from gpytorch.variational import IndependentMultitaskVariationalStrategy
 import pandas as pd
 import numpy as np
 import torch
-import pytest
 
 from lantern.model.surface import Phenotype
 from lantern.loss import ELBO_GP
