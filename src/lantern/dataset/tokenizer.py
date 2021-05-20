@@ -34,6 +34,8 @@ class Tokenizer:
         delim=":",
         regex=r"(?P<wt>[a-zA-Z*])(?P<site>\d+)(?P<mut>[a-zA-Z*])",
     ):
+        """Construct a tokenizer from a list of variants.
+        """
 
         # get unique tokens
         _tokens = list(

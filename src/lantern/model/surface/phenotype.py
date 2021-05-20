@@ -49,6 +49,8 @@ class Phenotype(ApproximateGP, Module):
             )
 
     def forward(self, z):
+        """The forward prediction of the phenotype for a position in latent phenotype space.
+        """
         mean_x = self.mean(z)
         covar_x = self.kernel(z)
         return MultivariateNormal(mean_x, covar_x)
