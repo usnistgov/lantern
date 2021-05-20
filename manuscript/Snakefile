@@ -37,6 +37,7 @@ include: "smk/figures/calibration.smk"
 include: "smk/figures/surface.smk"
 include: "smk/figures/sample-size.smk"
 include: "smk/figures/anglehist.smk"
+include: "smk/figures/gradient.smk"
 
 rule data:
     input:
@@ -140,19 +141,24 @@ rule figures:
     """
     input:
         "figures/cvr2.png",
-        "figures/laci-joint/ec50/surface.png",
-        "figures/laci-joint/ginf/surface.png",
-        "figures/covid-joint/exp/surface.png",
-        "figures/covid-joint/bind/surface.png",
-        "figures/gfp-brightness/brightness/surface.png",
+        expand(
+            "figures/{dstarg}/{fig}.png",
+            dstarg=[
+                "laci-joint/ec50",
+                "laci-joint/ginf",
+                "covid-joint/exp",
+                "covid-joint/bind",
+                "gfp-brightness/brightness",
+            ],
+            fig=["surface", "gradient"],
+        ),
         "figures/laci-joint/sample-size-ec50.png",
-        "figures/laci-joint/sample-size-0.png",
         "figures/laci-joint/sample-size-ginf.png",
         expand(
             "figures/{dataset}/anglehist.png",
             dataset=["laci-joint", "covid-joint", "gfp-brightness"],
         ),
-
+    group: "figure"
     shell:
         "tar -czf figures.tar.gz figures/*"
 

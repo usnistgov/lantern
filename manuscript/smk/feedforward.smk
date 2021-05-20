@@ -21,7 +21,8 @@ from src.feedforward import Feedforward
 
 rule ff_cv:
     input:
-        "data/processed/{ds}.csv"
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
     output:
         "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}/model.pt" # note D is depth here
     run:
@@ -31,12 +32,7 @@ rule ff_cv:
         
         # Load the dataset
         df = pd.read_csv(input[0])
-        ds = Dataset(
-            df,
-            substitutions=dsget("substitutions", default="substitutions"),
-            phenotypes=dsget(f"phenotypes/{wildcards.phenotype}", default=["phenotype"]),
-            errors=dsget(f"errors/{wildcards.phenotype}", None),
-        )
+        ds = pickle.load(open(input[1], "rb"))
 
         # Build model and loss
         DEPTH = int(wildcards.D)

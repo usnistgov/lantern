@@ -7,6 +7,7 @@ rule anglehist:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
         "experiments/{ds}-{phenotype}/lantern/full/model.pt"
+    group: "figure"
     output:
         "figures/{ds}-{phenotype}/anglehist.png"
 

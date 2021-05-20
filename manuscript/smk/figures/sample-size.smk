@@ -16,6 +16,7 @@ rule sample_size:
                 allow_missing=True,
             )
         ),
+    group: "figure"
     output:
         "figures/{ds}-{phenotype}/sample-size-{p}.png"
     params:
@@ -25,7 +26,7 @@ rule sample_size:
                 f"{wc.ds}/errors/{wc.phenotype}",
                 default=["dummy-var"] # build a default list of errors if none there
                 * len(get(config, f"{wc.ds}/phenotypes/{wc.phenotype}")),
-            )[wc.p]
+            )[int(wc.p)]
             == "dummy-var" # noiseless if no errors
         )
     run:
@@ -86,6 +87,7 @@ rule laci_ss_ec50:
                 cv=range(10),
             )
         ),
+    group: "figure"
     output:
         "figures/laci-joint/sample-size-ec50.png"
     run:
@@ -128,6 +130,7 @@ rule laci_ss_ec50:
 rule laci_ss_ginf:
     input:
         expand("experiments/laci-joint/lantern/cv{cv}-n{n}/pred-val.csv", n=np.arange(5000, 45000, 5000), cv=range(10)),
+    group: "figure"
     output:
         "figures/laci-joint/sample-size-ginf.png"
     run:

@@ -10,7 +10,7 @@ rule cvr2:
 
     input:
         expand("experiments/{dataset}/{model}/cv{cv}/pred-val.csv", cv=range(10), model=TORCH_MODELS+["globalep"], dataset=DATASETS)
-
+    group: "figure"
     output:
         "figures/cvr2.png"
     run:
