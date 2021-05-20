@@ -71,7 +71,7 @@ class VariationalBasis(Basis, Variational):
 
         wprior = None
         klW = None
-        scale = (1 / alpha).sqrt().repeat(K, 1)
+        scale = torch.clamp((1 / alpha).sqrt().repeat(K, 1), max=100.0)
         wprior = Normal(0, scale)
         klW = kl_divergence(qW, wprior)
         kla = kl_divergence(qalpha, self.alpha_prior)

@@ -25,6 +25,7 @@ include: "smk/feedforward.smk"
 include: "smk/globalep.smk"
 
 import util
+import src
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from plotnine import *
@@ -35,6 +36,7 @@ include: "smk/figures/cvr2.smk"
 include: "smk/figures/calibration.smk"
 include: "smk/figures/surface.smk"
 include: "smk/figures/sample-size.smk"
+include: "smk/figures/anglehist.smk"
 
 rule data:
     input:
@@ -59,47 +61,78 @@ rule train_torch:
     Generate torch-based models (warning: computation intensive!)
     """
     input:
-        expand("experiments/{dataset}/{model}/cv{cv}/model.pt", cv=range(10), model=TORCH_MODELS, dataset=DATASETS),
-        expand("experiments/{dataset}/lantern/full/model.pt", dataset=["gfp-brightness", "laci-joint", "covid-joint"]),
-        expand("experiments/{dataset}/lantern/cv{cv}-n5000/model.pt", dataset=DATASETS, cv=range(10)),
-        expand("experiments/{dataset}/lantern/cv{cv}-n10000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
-        expand("experiments/{dataset}/lantern/cv{cv}-n15000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
-        expand("experiments/{dataset}/lantern/cv{cv}-n20000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
-        expand("experiments/{dataset}/lantern/cv{cv}-n25000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
-        expand("experiments/{dataset}/lantern/cv{cv}-n30000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
-        expand("experiments/{dataset}/lantern/cv{cv}-n35000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
-        expand("experiments/{dataset}/lantern/cv{cv}-n40000/model.pt", dataset=["laci-joint", "gfp-brightness"], cv=range(10)),
-
-    
+        expand(
+            "experiments/{dataset}/{model}/cv{cv}/model.pt",
+            cv=range(10),
+            model=TORCH_MODELS,
+            dataset=DATASETS,
+        ),
+        expand(
+            "experiments/{dataset}/lantern/full/model.pt",
+            dataset=["gfp-brightness", "laci-joint", "covid-joint"],
+        ),
+        expand(
+            "experiments/{dataset}/{model}/cv{cv}-n{n}000/model.pt",
+            dataset=["laci-joint", "gfp-brightness"],
+            cv=range(10),
+            model=["lantern", "feedforward-K8-D1-W32"],
+            n=[5, 10, 15, 20, 25, 30, 35, 40]
+        ),
 
 rule train:
     """
     Generate models (warning: computation intensive!)
     """
     input:
-        expand("experiments/{dataset}/{model}/cv{cv}/model.pt", cv=range(10), model=TORCH_MODELS, dataset=DATASETS),
-        expand("experiments/{dataset}/globalep/cv{cv}/model.pkl", cv=range(10), dataset=DATASETS),
+        expand(
+            "experiments/{dataset}/{model}/cv{cv}/model.pt",
+            cv=range(10),
+            model=TORCH_MODELS,
+            dataset=DATASETS,
+        ),
+        expand(
+            "experiments/{dataset}/globalep/cv{cv}/model.pkl",
+            cv=range(10),
+            dataset=DATASETS,
+        ),
 
 rule predict_torch:
     """
     Generate model predictions
     """
     input:
-        expand("experiments/{dataset}/{model}/cv{cv}/pred-val.csv", cv=range(10), model=TORCH_MODELS, dataset=DATASETS),
+        expand(
+            "experiments/{dataset}/{model}/cv{cv}/pred-val.csv",
+            cv=range(10),
+            model=TORCH_MODELS,
+            dataset=DATASETS,
+        ),
+        expand(
+            "experiments/{dataset}/{model}/cv{cv}-n{n}000/pred-val.csv",
+            dataset=["laci-joint", "gfp-brightness"],
+            cv=range(10),
+            model=["lantern", "feedforward-K8-D1-W32"],
+            n=[5, 10, 15, 20, 25, 30, 35, 40]
+        ),
 
 rule predict_ge:
     """
     Generate model predictions
     """
     input:
-        expand("experiments/{dataset}/globalep/cv{cv}/pred-val.csv", cv=range(10), dataset=DATASETS)
+        expand(
+            "experiments/{dataset}/globalep/cv{cv}/pred-val.csv",
+            cv=range(10),
+            dataset=DATASETS,
+        )
 
 rule predict:
     """
     Generate model predictions
     """
     input:
-        expand("experiments/{dataset}/{model}/cv{cv}/pred-val.csv", cv=range(10), model=MODELS, dataset=DATASETS),
+        rules.predict_torch.input,
+        rules.predict_ge.input,
 
 rule figures:
     """
@@ -107,14 +140,18 @@ rule figures:
     """
     input:
         "figures/cvr2.png",
-        #"figures/gfp/surface.png",
-        # expand("figures/{ds}/{model}/cv-calibration.png", model=MODELS, ds=DATASETS)
         "figures/laci-joint/ec50/surface.png",
         "figures/laci-joint/ginf/surface.png",
         "figures/covid-joint/exp/surface.png",
         "figures/covid-joint/bind/surface.png",
         "figures/gfp-brightness/brightness/surface.png",
-        "figures/laci-joint/sample-size.png",
+        "figures/laci-joint/sample-size-ec50.png",
+        "figures/laci-joint/sample-size-0.png",
+        "figures/laci-joint/sample-size-ginf.png",
+        expand(
+            "figures/{dataset}/anglehist.png",
+            dataset=["laci-joint", "covid-joint", "gfp-brightness"],
+        ),
 
     shell:
         "tar -czf figures.tar.gz figures/*"
