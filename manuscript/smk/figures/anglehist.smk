@@ -36,7 +36,11 @@ rule anglehist:
         bottom = H.max() * 0.5
 
         bars = ax.bar(
-            edges[:-1], H, width=edges[1:] - edges[:-1], bottom=bottom, zorder=100
+            edges[1:],
+            H,
+            width=edges[1:] - edges[:-1],
+            bottom=bottom,
+            zorder=100,
         )
         ax.set_yticklabels([])
 
