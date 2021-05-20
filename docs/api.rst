@@ -24,8 +24,10 @@ Loss
                   
 Dataset
 =======
+.. autoclass:: lantern.dataset.tokenizer.Tokenizer
+               :members:
 
-.. autoclass:: lantern.dataset._Base
+.. autoclass:: lantern.dataset.dataset._Base
                :members:
                :private-members:
                   

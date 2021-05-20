@@ -15,6 +15,13 @@ from lantern.dataset.tokenizer import Tokenizer
 class _Base(TensorDataset):
     """Base genotype-phenotype dataset class, shuttling a pandas dataframe
     to a TensorDataset.
+    
+    :param str substitutions: The column containing raw mutation data for each variant.
+    :param list[str] phenotypes: The columns of observed phenotypes for each variant
+    :param errors: The error columns associated with each phenotype, assumed to be variance (:math:`\sigma^2_y`)
+    :type errors: list[str], optional
+    :param tokenizer: The tokenizer converting raw mutations into one-hot encoded tensors
+    :type tokenizer: lantern.dataset.tokenizer.Tokenizer
     """
 
     substitutions: str = attr.ib(default="substitutions")
@@ -24,6 +31,8 @@ class _Base(TensorDataset):
 
     @errors.validator
     def _errors_correct_length(self, attribute, value):
+        """Check for correct length between errors and phenotypes
+        """
         if value is not None and len(value) != len(self.phenotypes):
             raise ValueError(
                 f"Number of error columns ({len(value)}) does not match phenotype columns ({len(self.phenotypes)})"
@@ -73,13 +82,19 @@ class _Base(TensorDataset):
 
     @property
     def D(self):
+        """The number of dimensions of the phenotype
+        """
         return len(self.phenotypes)
 
     @property
     def p(self):
+        """The number of mutations in the dataset
+        """
         return self.tokenizer.p
 
     def to(self, device):
+        """Send to device
+        """
         self.tensors = [t.to(device) for t in self.tensors]
 
     def meanEffects(self):
