@@ -3,6 +3,8 @@ import numpy as np
 import gpytorch
 import torch
 from tqdm import tqdm
+from sklearn.metrics import r2_score
+import pandas as pd
 
 # from src.analyze.grad import gradient, laplacian
 # from src.model import LatentLinearGPBayes
@@ -205,3 +207,37 @@ def predictions(
             ret[f"yhat_d{l}_"] = yhat_scan[:, l * D : (l + 1) * D].cpu().numpy()
 
     return ret
+
+
+def cv_scores(pths, func_score=False, noiseless=False, i=0, metric=r2_score):
+    """ Calculate the cv scores for a set of predictions
+    """
+
+    __scores = pd.concat([pd.read_csv(pths.format(c=i)) for i in range(10)])
+
+    if func_score:
+        __scores = (
+            __scores.groupby("cv")
+            .apply(
+                lambda x: metric(
+                    x.observed_phenotype,
+                    x.func_score,
+                    sample_weight=None if noiseless else 1 / x.func_score_var,
+                )
+            )
+            .to_frame("metric")
+        )
+    else:
+        __scores = (
+            __scores.groupby("cv")
+            .apply(
+                lambda x: metric(
+                    x[f"y{i}"],
+                    x[f"yhat{i}"],
+                    sample_weight=None if noiseless else 1 / x[f"noise{i}"],
+                )
+            )
+            .to_frame("metric")
+        )
+
+    return __scores
