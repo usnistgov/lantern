@@ -69,8 +69,6 @@ class VariationalBasis(Basis, Variational):
         # prior loss
         K, L = W.shape
 
-        wprior = None
-        klW = None
         scale = (1 / alpha).sqrt().repeat(K, 1)
         wprior = Normal(0, scale)
         klW = kl_divergence(qW, wprior)
