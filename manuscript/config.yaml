@@ -79,3 +79,22 @@ figures:
       bind:
         raw: "func_score_bind"
         p: 1
+
+  laplacian:
+    gfp-brightness:
+      brightness:
+        dims: 3
+
+    laci-joint:
+      ec50:
+        dims: 3
+
+      ginf:
+        dims: 3
+
+    covid-joint:
+      exp:
+        dims: 5
+
+      bind:
+        dims: 5

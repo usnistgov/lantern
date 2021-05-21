@@ -38,6 +38,8 @@ include: "smk/figures/surface.smk"
 include: "smk/figures/sample-size.smk"
 include: "smk/figures/anglehist.smk"
 include: "smk/figures/gradient.smk"
+include: "smk/figures/robustness.smk"
+include: "smk/figures/laplacian.smk"
 
 rule data:
     input:
@@ -150,7 +152,7 @@ rule figures:
                 "covid-joint/bind",
                 "gfp-brightness/brightness",
             ],
-            fig=["surface", "gradient"],
+            fig=["surface", "gradient", "robustness", "laplacian"],
         ),
         "figures/laci-joint/sample-size-ec50.png",
         "figures/laci-joint/sample-size-ginf.png",
