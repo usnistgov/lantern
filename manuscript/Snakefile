@@ -1,3 +1,11 @@
+import util
+import src
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+from plotnine import *
+from plotnine.options import *
+
+
 configfile: "config.yaml"
 
 DATASETS = [
@@ -24,14 +32,6 @@ include: "smk/lantern.smk"
 include: "smk/feedforward.smk"
 include: "smk/globalep.smk"
 
-import util
-import src
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-from plotnine import *
-from plotnine.options import *
-
-
 include: "smk/figures/cvr2.smk"
 include: "smk/figures/calibration.smk"
 include: "smk/figures/surface.smk"
@@ -40,6 +40,7 @@ include: "smk/figures/anglehist.smk"
 include: "smk/figures/gradient.smk"
 include: "smk/figures/robustness.smk"
 include: "smk/figures/laplacian.smk"
+include: "smk/figures/additivity.smk"
 
 rule data:
     input:
@@ -152,10 +153,11 @@ rule figures:
                 "covid-joint/bind",
                 "gfp-brightness/brightness",
             ],
-            fig=["surface", "gradient", "robustness", "laplacian"],
+            fig=["surface", "gradient", "robustness", "laplacian", "additivity"],
         ),
         "figures/laci-joint/sample-size-ec50.png",
         "figures/laci-joint/sample-size-ginf.png",
+        "figures/gfp-brightness/sample-size-0.png",
         expand(
             "figures/{dataset}/anglehist.png",
             dataset=["laci-joint", "covid-joint", "gfp-brightness"],

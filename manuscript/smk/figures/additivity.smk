@@ -1,8 +1,8 @@
 from gpytorch.variational import IndependentMultitaskVariationalStrategy
 
-rule robustness:
+rule additivity:
     """
-    Gradient plot of lantern model.
+    Laplacian plot of lantern model.
     """
 
     input:
@@ -11,10 +11,10 @@ rule robustness:
         "experiments/{ds}-{phenotype}/lantern/full/model.pt"
     group: "figure"
     output:
-        "figures/{ds}-{phenotype}/{target}/robustness.png"
+        "figures/{ds}-{phenotype}/{target}/additivity.png"
 
     run:
-        from lantern.diffops import grad
+        from lantern.diffops import lapl
         from lantern.diffops import metric
 
         def dsget(pth, default):
@@ -25,7 +25,7 @@ rule robustness:
             """Get the configuration for the specific dataset"""
             return get(
                 config,
-                f"figures/gradient/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/{pth}",
+                f"figures/laplacian/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/{pth}",
                 default=default,
             )
 
@@ -52,6 +52,10 @@ rule robustness:
         )
         
         # figure parameters
+        dims = fget(
+            "dims",
+            default=8,
+        )
         N = fget(
             "N",
             default=50,
@@ -88,17 +92,24 @@ rule robustness:
             N=N,
         )
 
-        mu, var = grad.gradient(model.surface, Z, z0=z0, p=p)
-        robustness_surf = metric.kernel(mu, var)
+        mu, var = lapl.laplacian(
+            model.surface, Z, z0=z0, dims=model.basis.order[:dims], p=p
+        )
+        additivity_surf = metric.kernel(mu, var)
 
-        fig, ax = plt.subplots(figsize=(4, 4), dpi=150)
-        
+
+        image = mu
+        image = image.reshape(Z1.shape)
+
+        fig, ax = plt.subplots(figsize=(5, 3), dpi=150)
         midpoint = None
         vmin = 0
         vmax = 1
 
+        cmap = "PuOr"
+
         im = ax.imshow(
-            robustness_surf.reshape(Z1.shape).numpy(),
+            additivity_surf.reshape(Z1.shape).numpy(),
             extent=(Z1.min(), Z1.max(), Z2.min(), Z2.max()),
             aspect="auto",
             cmap="Greys_r",
@@ -116,7 +127,7 @@ rule robustness:
             else None,
         )
 
-
+        
         fig, norm, cmap, vrange = util.plotLandscape(
             z,
             fmu,
@@ -132,5 +143,7 @@ rule robustness:
             ax=ax,
             contour_kwargs=dict(alpha=0.6),
         )
+
+        fig.colorbar(im, ax=ax)
 
         plt.savefig(output[0], bbox_inches="tight")
