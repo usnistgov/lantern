@@ -1,4 +1,4 @@
-from lantern.likelihood.likelihoods import (
+from lantern.model.likelihood.likelihoods import (
     GaussianLikelihood,
     MultitaskGaussianLikelihood,
 )
