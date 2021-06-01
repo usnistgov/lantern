@@ -20,5 +20,6 @@ class MultitaskGaussianLikelihood(BaseMGL):
     def _shaped_noise_covar(self, base_shape, noise=None):
         noise_covar = super()._shaped_noise_covar(base_shape)
         if noise is not None:
-            return noise_covar.add_diag(noise)
+            # reshape to match diagonal shape in multitask case
+            return noise_covar.add_diag(noise.reshape(noise.shape[0] * noise.shape[1]))
         return noise_covar

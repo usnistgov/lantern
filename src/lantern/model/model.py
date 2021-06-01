@@ -1,8 +1,10 @@
 import attr
+import gpytorch
 
 from lantern import Module
 from lantern.model.surface import Surface
 from lantern.model.basis import Basis
+from lantern.loss import ELBO_GP
 
 
 @attr.s(cmp=False)
@@ -12,6 +14,7 @@ class Model(Module):
 
     basis: Basis = attr.ib()
     surface: Surface = attr.ib()
+    likelihood: gpytorch.likelihoods.Likelihood = attr.ib()
 
     @surface.validator
     def _surface_validator(self, attribute, value):
@@ -28,4 +31,6 @@ class Model(Module):
         return f
 
     def loss(self, *args, **kwargs):
-        return self.basis.loss(*args, **kwargs) + self.surface.loss(*args, **kwargs)
+        return self.basis.loss(*args, **kwargs) + ELBO_GP.fromModel(
+            self, *args, **kwargs
+        )
