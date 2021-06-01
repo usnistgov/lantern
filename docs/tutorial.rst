@@ -1,3 +1,5 @@
+.. _tutorial:
+
 Tutorial
 ########
 
@@ -10,15 +12,26 @@ Genotype phenotype dataset
 LANTERN provides a pytorch :class:`dataset
 <lantern.dataset.dataset.\_Base>` type for GPL datasets. Currently,
 the implementation assumes that the raw GPL data will come in the form
-of a :class:`pandas dataframe<pandas.DataFrame>`. At minimum, this
-dataframe should have a column encoding the raw mutational data and
-one or more phenotypes. It is also possible to include error
-measurements for each phenotype, currently assumed to by observation variance.
+of a :class:`pandas DataFrame<pandas.DataFrame>`. At minimum, the
+DataFrame should have:
 
->>> df = pd.read_csv("my-gpl.csv")
+1. A `substitutions` column representing the string encoded mutational
+   data of each variant. For example, the string `"+a:+b"` represents
+   a variant with the mutations `"+a"` and `"+b"`
+2. One or more `phenotypes` columns measured for each variant
+3. An optional matching set of `errors` columns (one for each
+   phenotype). Assumed to be observed variance
+
+An example dataset (see :ref:`simulate`):
+
+>>> df = pd.read_csv("example.csv")
 >>> df.head()
-fdsa
-
+  substitutions  phenotype
+0           NaN   0.759801
+1            +a   1.141440
+2            +b   0.159070
+3            +c   0.075118
+4            +d   0.807002
 
 Tokenizer
 ---------
