@@ -113,7 +113,6 @@ class Tokenizer:
     def detokenize(self, t):
         """Convert a binarized token tensor into a mutation string
         """
-        print(torch.where(t))
 
         if t.ndim == 1:
             return self.delim.join([self[i.item()] for i in torch.where(t)[0]])

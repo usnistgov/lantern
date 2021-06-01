@@ -6,6 +6,7 @@ LANTERN: an interpretable genotype-phenotype landscape model
    :caption: Contents:
 
    tutorial
+   analyze
    sim
    diffops
    api
