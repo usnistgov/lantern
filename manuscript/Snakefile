@@ -1,7 +1,12 @@
 import util
 import src
+from src import allostery
+
+from glob import glob
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import numpy as np
+
 from plotnine import *
 from plotnine.options import *
 
@@ -41,6 +46,7 @@ include: "smk/figures/gradient.smk"
 include: "smk/figures/robustness.smk"
 include: "smk/figures/laplacian.smk"
 include: "smk/figures/additivity.smk"
+include: "smk/figures/highlight.smk"
 
 rule data:
     input:
@@ -162,6 +168,16 @@ rule figures:
             "figures/{dataset}/anglehist.png",
             dataset=["laci-joint", "covid-joint", "gfp-brightness"],
         ),
+        # highlights
+        "figures/gfp-brightness/brightness/surface-focus.png",
+        "figures/gfp-brightness/brightness/surface-bfp1.png",
+        "figures/gfp-brightness/brightness/surface-bfp2.png",
+        "figures/laci-joint/parametric.png",
+        "figures/covid-joint/anglehist-highlight.png",
+        "figures/covid-joint/axes-surface.png",
+        "figures/covid-joint/parametric.png",
+        "figures/covid-joint/variants.png",
+        "figures/covid-joint/variants_project.png",
     group: "figure"
     shell:
         "tar -czf figures.tar.gz figures/*"

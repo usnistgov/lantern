@@ -9,20 +9,47 @@ rule surface:
         "experiments/{ds}-{phenotype}/lantern/full/model.pt"
     output:
         "figures/{ds}-{phenotype}/{target}/surface.png"
-
     run:
 
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
-        
-        alpha = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha", default=0.01)
-        raw = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/raw", default=None)
-        log = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/log", default=False)
-        p = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/p", default=0)
-        image = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/image", default=False)
-        scatter = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/scatter", default=True)
-        mask = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/mask", default=False)
+
+        alpha = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha",
+            default=0.01,
+        )
+        raw = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/raw",
+            default=None,
+        )
+        log = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/log",
+            default=False,
+        )
+        p = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/p",
+            default=0,
+        )
+        image = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/image",
+            default=False,
+        )
+        scatter = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/scatter",
+            default=True,
+        )
+        mask = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/mask",
+            default=False,
+        )
 
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", dsget("K", 8))
         model.eval()
