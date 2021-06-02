@@ -1,5 +1,6 @@
 import pandas as pd
 from torch.optim import Adam
+import torch
 import matplotlib.pyplot as plt
 
 from lantern.dataset import Dataset

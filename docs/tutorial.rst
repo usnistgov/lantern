@@ -149,6 +149,11 @@ The results should like
 
 .. plot:: plots/training.py
 
+Downstream Analysis
+===================
+
+Examples of downstream analysis of trained models can be seen in the :ref:`Examples<examples>`.
+
 .. _tokenizer:
 
 Controlling the mutation string Tokenizer

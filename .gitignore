@@ -5,3 +5,7 @@ data/
 gpu-stats*
 __pycache__/
 *.egg-info/
+docs/examples
+docs/*.pt
+docs/*.csv
+docs/_build/

@@ -1,6 +1,6 @@
 import string
-from itertools import combinations
 import pandas as pd
+from itertools import combinations
 from gpytorch.kernels import RQKernel
 import torch
 import numpy as np
