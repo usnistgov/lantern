@@ -20,9 +20,7 @@ Installation
 LANTERN currently must be installed from source. It is recommended to
 install in a virtual environment (e.g. venv or conda)::
 
-  git clone github.com/ptonner/lantern
-  cd lantern
-  python setup.py install
+  python -m pip install git+https://github.com/ptonner/lantern.git@XXX
 
 Quickstart
 ==========
