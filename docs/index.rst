@@ -28,6 +28,8 @@ LANTERN provides a straightforward interface for training models:
 ::
 
    import pandas as pd
+   from torch.optim import Adam
+   
    from lantern.dataset import Dataset
    from lantern.model import Model
    from lantern.model.basis import VariationalBasis
@@ -35,8 +37,7 @@ LANTERN provides a straightforward interface for training models:
 
    # create a dataframe containing GPL data
    df = pd.DataFrame(
-       substitutions=["", "+a", "+b", "+a:+b"],
-       phenotype=[0.0, 1.0, 1.0, 0.8],
+       {"substitutions": ["", "+a", "+b", "+a:+b"], "phenotype": [0.0, 1.0, 1.0, 0.8]},
    )
 
    # convert the data to a LANTERN dataset
@@ -55,9 +56,10 @@ LANTERN provides a straightforward interface for training models:
    optimizer = Adam(loss.parameters(), lr=0.01)
    for i in range(100):
        optimizer.zero_grad()
-       lss = loss(X, y)
+       yhat = model(X)
+       lss = loss(yhat, y)
        total = sum(lss.values())
-       total.backwards()
+       total.backward()
        optimizer.step()
 
 For a more thorough introduction, see the :ref:`tutorial`.
