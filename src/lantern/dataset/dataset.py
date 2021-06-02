@@ -112,7 +112,7 @@ class _DataframeDataset:
     """A direct from dataframe base class, used just to enforce argument order for attrs.
     """
 
-    df: pd.DataFrame = attr.ib()
+    df: pd.DataFrame = attr.ib(repr=False)
 
 
 @attr.s()
