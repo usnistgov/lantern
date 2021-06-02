@@ -31,11 +31,17 @@ class VariationalBasis(Basis, Variational):
 
         Wmu = nn.Parameter(Wmu)
 
+        # try to prevent some instabilities on gradients
+        log_alpha = nn.Parameter(torch.randn(K))
+        log_alpha.register_hook(lambda grad: torch.clamp(grad, -10.0, 10.0))
+        log_beta = nn.Parameter(torch.randn(K))
+        log_beta.register_hook(lambda grad: torch.clamp(grad, -10.0, 10.0))
+
         return cls(
             Wmu,
             nn.Parameter(torch.randn(p, K) - 3),
-            nn.Parameter(torch.randn(K)),
-            nn.Parameter(torch.randn(K)),
+            log_alpha,
+            log_beta,
             Gamma(alpha_0, beta_0),
         )
 
