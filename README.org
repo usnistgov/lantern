@@ -1,0 +1,11 @@
+#+TITLE: LANTERN: an interpretable genotype-phenotype landscape model
+
+*LANTERN is currently in alpha and the primary interface is subject to change*
+
+Documentation: [[https://lantern-gpl.readthedocs.io/en/latest/index.html][https://lantern-gpl.readthedocs.io]] 
+
+* Install
+  ~LANTERN~ currently must be installed from this repository directly
+  #+begin_src bash
+    python -m pip install git+https://github.com/usnistgov/lantern.git
+  #+end_src
