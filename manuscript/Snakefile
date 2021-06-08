@@ -27,6 +27,7 @@ TORCH_MODELS = [
     "lantern",
     "feedforward-K1-D1-W32",
     "feedforward-K8-D1-W32",
+    "linear"
 ]
 
 MODELS = TORCH_MODELS + ["globalep"]
@@ -35,6 +36,7 @@ MODELS = TORCH_MODELS + ["globalep"]
 include: "smk/data.smk"
 include: "smk/lantern.smk"
 include: "smk/feedforward.smk"
+include: "smk/linear.smk"
 include: "smk/globalep.smk"
 
 include: "smk/figures/cvr2.smk"
