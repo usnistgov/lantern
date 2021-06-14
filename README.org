@@ -5,7 +5,15 @@
 Documentation: [[https://lantern-gpl.readthedocs.io/en/latest/index.html][https://lantern-gpl.readthedocs.io]] 
 
 * Install
-  ~LANTERN~ currently must be installed from this repository directly
+  ~LANTERN~ currently must be installed from this repository directly,
+  either through pip:
   #+begin_src bash
     python -m pip install git+https://github.com/usnistgov/lantern.git
   #+end_src
+  of by cloning this repository:
+  #+begin_src bash
+    git clone https://github.com/usnistgov/lantern.git
+    cd lantern
+    python setup.py install
+  #+end_src
+  In either case, it is recommended to install inside a [[https://docs.python.org/3/tutorial/venv.html][virtual environment]].
