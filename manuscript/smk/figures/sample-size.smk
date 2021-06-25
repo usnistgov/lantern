@@ -18,24 +18,36 @@ rule sample_size:
         ),
     group: "figure"
     output:
-        "figures/{ds}-{phenotype}/sample-size-{p}.png"
+        "figures/{ds}-{phenotype}/sample-size-{phen}.png"
     params:
         noiseless = (
             lambda wc: get(
                 config,
                 f"{wc.ds}/errors/{wc.phenotype}",
-                default=["dummy-var"] # build a default list of errors if none there
+                default=["dummy-var"]  # build a default list of errors if none there
                 * len(get(config, f"{wc.ds}/phenotypes/{wc.phenotype}")),
-            )[int(wc.p)]
-            == "dummy-var" # noiseless if no errors
+            )[
+                (
+                    get(config, f"{wc.ds}/phenotypes/{wc.phenotype}")
+                    .index(wc.phen)
+                )
+            ]
+            == "dummy-var"  # noiseless if no errors
         )
     run:
         scores = None
         reg = re.compile("cv(?P<cv>\d+)-n(?P<n>\d+)")
+
+        # column of targeted phenotype
+        ind = (
+            get(config, f"{wildcards.ds}/phenotypes/{wildcards.phenotype}")
+            .index(wildcards.phen)
+        )
+
         for inp in input.lantern:
             mtch = reg.search(inp)
             _scores = src.predict.cv_scores(
-                inp, i=int(wildcards.p), noiseless=params.noiseless
+                inp, i=ind, noiseless=params.noiseless
             ).assign(
                 size=int(mtch.group("n")), cv=int(mtch.group("cv")), model="LANTERN"
             )
@@ -48,7 +60,7 @@ rule sample_size:
         for inp in input.feedforward:
             mtch = reg.search(inp)
             _scores = src.predict.cv_scores(
-                inp, i=int(wildcards.p), noiseless=params.noiseless
+                inp, i=ind, noiseless=params.noiseless
             ).assign(
                 size=int(mtch.group("n")),
                 cv=int(mtch.group("cv")),

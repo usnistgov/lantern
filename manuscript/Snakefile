@@ -38,6 +38,7 @@ include: "smk/lantern.smk"
 include: "smk/feedforward.smk"
 include: "smk/linear.smk"
 include: "smk/globalep.smk"
+include: "smk/allostery.smk"
 
 include: "smk/figures/cvr2.smk"
 include: "smk/figures/calibration.smk"
@@ -165,7 +166,7 @@ rule figures:
         ),
         "figures/laci-joint/sample-size-ec50.png",
         "figures/laci-joint/sample-size-ginf.png",
-        "figures/gfp-brightness/sample-size-0.png",
+        "figures/gfp-brightness/sample-size-phenotype.png",
         expand(
             "figures/{dataset}/anglehist.png",
             dataset=["laci-joint", "covid-joint", "gfp-brightness"],
@@ -192,3 +193,10 @@ rule help:
         for rule in workflow.rules:
             print(rule.name)
             print(rule.docstring)
+
+# rule a:
+#     input: expand("tmp/in/{a}.txt", a=range(10))
+#     output: "tmp/out/a.txt"
+# 
+# rule b:
+#     input: "tmp/{a}/out.txt"

@@ -16,41 +16,50 @@ rule cvr2:
     run:
         scores = None
         metric = r2_score
+        dsets = []
 
         for dlabel, mlabel, ds, model, p, noiseless in [
 
+                ("avGFP brightness", "Linear", "gfp-brightness", "linear", 0, True),
                 ("avGFP brightness", "LANTERN", "gfp-brightness", "lantern", 0, True),
                 ("avGFP brightness", "NN (K=1)", "gfp-brightness", "feedforward-K1-D1-W32", 0, True),
                 ("avGFP brightness", "NN (K=8)", "gfp-brightness", "feedforward-K8-D1-W32", 0, True),
                 ("avGFP brightness", "I-spline", "gfp-brightness", "globalep", 0, True),
 
-                ("LacI $\mathrm{EC}_{50}$", "LANTERN", "laci-ec50", "lantern", 0, False),
-                ("LacI $\mathrm{EC}_{50}$", "LANTERN (joint)", "laci-joint", "lantern", 0, False),
-                ("LacI $\mathrm{EC}_{50}$", "NN (K=1)", "laci-ec50", "feedforward-K1-D1-W32", 0, False),
-                ("LacI $\mathrm{EC}_{50}$", "NN (K=8)", "laci-ec50", "feedforward-K8-D1-W32", 0, False),
-                ("LacI $\mathrm{EC}_{50}$", "I-spline", "laci-ec50", "globalep", 0, False),
-
-                ("LacI $\mathrm{G}_{\infty}$", "LANTERN", "laci-ginf", "lantern", 0, True),
-                ("LacI $\mathrm{G}_{\infty}$", "LANTERN (joint)", "laci-joint", "lantern", 1, True),
-                ("LacI $\mathrm{G}_{\infty}$", "NN (K=1)", "laci-ginf", "feedforward-K1-D1-W32", 0, True),
-                ("LacI $\mathrm{G}_{\infty}$", "NN (K=8)", "laci-ginf", "feedforward-K8-D1-W32", 0, True),
-                ("LacI $\mathrm{G}_{\infty}$", "I-spline", "laci-ginf", "globalep", 0, True),
-
-                ("SARS-CoV-2 $K_d$", "LANTERN", "covid-bind", "lantern", 0, False),
-                ("SARS-CoV-2 $K_d$", "LANTERN (joint)", "covid-joint", "lantern", 1, False),
+                # ("SARS-CoV-2 $K_d$", "LANTERN", "covid-bind", "lantern", 0, False),
+                ("SARS-CoV-2 $K_d$", "LANTERN", "covid-joint", "lantern", 1, False),
+                ("SARS-CoV-2 $K_d$", "Linear", "covid-bind", "linear", 0, False),
                 ("SARS-CoV-2 $K_d$", "NN (K=1)", "covid-bind", "feedforward-K1-D1-W32", 0, False),
                 ("SARS-CoV-2 $K_d$", "NN (K=8)", "covid-bind", "feedforward-K8-D1-W32", 0, False),
                 ("SARS-CoV-2 $K_d$", "I-spline", "covid-bind", "globalep", 0, False),
 
-                ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "LANTERN", "covid-exp", "lantern", 0, False),
-                ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "LANTERN (joint)", "covid-joint", "lantern", 0, False),
+                # ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "LANTERN", "covid-exp", "lantern", 0, False),
+                ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "LANTERN", "covid-joint", "lantern", 0, False),
+                ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "Linear", "covid-exp", "linear", 0, False),
                 ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "NN (K=1)", "covid-exp", "feedforward-K1-D1-W32", 0, False),
                 ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "NN (K=8)", "covid-exp", "feedforward-K8-D1-W32", 0, False),
                 ("SARS-CoV-2 $\log \Delta \mathrm{MFI}$", "I-spline", "covid-exp", "globalep", 0, False),
 
+                # ("LacI $\mathrm{EC}_{50}$", "LANTERN", "laci-ec50", "lantern", 0, False),
+                ("LacI $\mathrm{EC}_{50}$", "LANTERN", "laci-joint", "lantern", 0, False),
+                ("LacI $\mathrm{EC}_{50}$", "Linear", "laci-ec50", "linear", 0, False),
+                ("LacI $\mathrm{EC}_{50}$", "NN (K=1)", "laci-ec50", "feedforward-K1-D1-W32", 0, False),
+                ("LacI $\mathrm{EC}_{50}$", "NN (K=8)", "laci-ec50", "feedforward-K8-D1-W32", 0, False),
+                ("LacI $\mathrm{EC}_{50}$", "I-spline", "laci-ec50", "globalep", 0, False),
+
+                # ("LacI $\mathrm{G}_{\infty}$", "LANTERN", "laci-ginf", "lantern", 0, True),
+                ("LacI $\mathrm{G}_{\infty}$", "LANTERN", "laci-joint", "lantern", 1, True),
+                ("LacI $\mathrm{G}_{\infty}$", "Linear", "laci-ginf", "linear", 0, True),
+                ("LacI $\mathrm{G}_{\infty}$", "NN (K=1)", "laci-ginf", "feedforward-K1-D1-W32", 0, True),
+                ("LacI $\mathrm{G}_{\infty}$", "NN (K=8)", "laci-ginf", "feedforward-K8-D1-W32", 0, True),
+                ("LacI $\mathrm{G}_{\infty}$", "I-spline", "laci-ginf", "globalep", 0, True),
+
         ]:
+            if dlabel not in dsets:
+                dsets.append(dlabel)
+                
             pths = expand(
-                "experiments/{dataset}/{model}/cv{cv}/pred-val.csv",
+                r"experiments/{dataset}/{model}/cv{cv}/pred-val.csv",
                 cv=range(10),
                 model=model,
                 dataset=ds
@@ -87,30 +96,26 @@ rule cvr2:
                 scores = _scores
             else:
                 scores = pd.concat((scores, _scores))
-        
+
         # enforce order we want
         scores = scores.assign(
-            method=scores.method.astype("category").cat.reorder_categories([
-                "I-spline",
-                "NN (K=1)",
-                "NN (K=8)",
-                "LANTERN",
-                "LANTERN (joint)",
-            ]),
-            # dataset=scores.dataset.astype("category").cat.reorder_categories(dsets),
+            method=scores.method.astype("category").cat.reorder_categories(
+                ["Linear", "I-spline", "NN (K=1)", "NN (K=8)", "LANTERN",]
+            ),
+            dataset=scores.dataset.astype("category").cat.reorder_categories(dsets),
         )
 
         # make the plot
-        ncol = 5
+        ncol = 3
         plot = (
             ggplot(scores)
             + aes(x="factor(method)", y="metric", fill="factor(method)")
-            + geom_boxplot()
+            + geom_boxplot(outlier_alpha=0.0)
             + geom_jitter()
             + facet_wrap("dataset", scales="free_y", ncol=ncol)
             + theme(
-                subplots_adjust={"wspace": 0.45},
-                figure_size=(15, 3),
+                subplots_adjust={"wspace": 0.25},
+                figure_size=(9, 6),
                 dpi=300,
             )
             + guides(fill=guide_legend(title=""))

@@ -594,7 +594,7 @@ rule covid_parametric:
 
             plt.fill((xf * s1 + m1), (yf * s2 + m2), alpha=0.6, color=color)
 
-        plt.figure(figsize=(5, 3), dpi=200)
+        plt.figure(figsize=(3, 2), dpi=200)
 
         m1 = df["func_score_exp"].mean()
         s1 = df["func_score_exp"].std()
@@ -626,7 +626,7 @@ rule covid_parametric:
 
 rule covid_variants:
     """
-    Parametric plot of binding/expression versus different axes
+    Covid variants of interest
     """
 
     input:

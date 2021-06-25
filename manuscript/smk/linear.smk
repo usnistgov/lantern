@@ -25,7 +25,13 @@ class Linear(nn.Module):
         loss = F.mse_loss(yhat, y.float(), reduction="none")
 
         if noise is not None:
-            loss = loss / noise
+            nz = torch.count_nonzero(noise, dim=0)
+
+            # check that noise is not all zero
+            for i, nnz in enumerate(nz):
+                if nnz > 0:
+                    loss[:, i] = loss[:, i] / noise[:, i]
+
 
         return loss.mean()
 
@@ -87,7 +93,7 @@ rule lin_cv:
             mlflow.log_param("cv", wildcards.cv)
             mlflow.log_param("batch-size", tloader.batch_size)
 
-            pbar = tqdm(range(dsget("linear/epochs", default=100)),)
+            pbar = tqdm(range(dsget("linear/epochs", default=50)),)
             best = np.inf
             for e in pbar:
 
@@ -130,3 +136,55 @@ rule lin_cv:
             torch.save(model.state_dict(), os.path.join(base, "model.pt"))
             mlflow.log_artifact(os.path.join(base, "model.pt"), "model")
 
+
+rule lin_prediction:
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/linear/cv{cv,\d+}/model.pt"
+    output:
+        "experiments/{ds}-{phenotype}/linear/cv{cv,\d+}/pred-val.csv"
+    group: "linear"
+    run:
+        import pickle
+
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+        
+        CUDA = dsget("linear/prediction/cuda", default=True)
+
+        # Load the dataset
+        df = pd.read_csv(input[0])
+        ds = pickle.load(open(input[1], "rb"))
+        train = Subset(ds, np.where(df.cv != float(wildcards.cv))[0])
+        validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
+
+        # setup model
+        model = Linear(ds.p, ds.D)
+        model.load_state_dict(torch.load(input[2], "cpu"))
+        model.eval()
+
+        if CUDA:
+            model = model.cuda()
+
+        def save(ofile, df, **kwargs):
+            for k, t in kwargs.items():
+                for i in range(t.shape[1]):
+                    df["{}{}".format(k, i)] = t[:, i]
+
+            df.to_csv(ofile, index=False)
+
+        with torch.no_grad():
+            save(
+                output[0],
+                df[df.cv == float(wildcards.cv)],
+                **predictions(
+                    ds.D,
+                    model,
+                    validation,
+                    cuda=CUDA,
+                    size=dsget("linear/prediction/size", default=1024),
+                    pbar=dsget("linear/prediction/pbar", default=True)
+                )
+            )

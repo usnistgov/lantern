@@ -24,6 +24,14 @@ rule ds_pkl:
 
         pickle.dump(ds, open(output[0], "wb"))
 
+rule laci_raw:
+    output:
+        "data/raw/laci.hdf"
+    shell:
+        """
+        # wget -O {output} "https://data.nist.gov/od/ds/ark:/88434/mds2-2259/LacI%20landscape%20data.hdf"
+        wget -O {output} https://data.nist.gov/od/ds/ark:/88434/mds2-2259/LacI%20landscape%20data.hdf
+        """
 
 rule gfp_raw:
     output:
