@@ -164,9 +164,11 @@ rule figures:
             ],
             fig=["surface", "gradient", "robustness", "laplacian", "additivity"],
         ),
-        "figures/laci-joint/sample-size-ec50.png",
-        "figures/laci-joint/sample-size-ginf.png",
+        "figures/laci-joint/sample-size-ec50-norm.png",
+        "figures/laci-joint/sample-size-ginf-norm.png",
         "figures/gfp-brightness/sample-size-phenotype.png",
+        "figures/covid-joint/sample-size-func_score_norm_exp.png",
+        "figures/covid-joint/sample-size-func_score_norm_bind.png",
         expand(
             "figures/{dataset}/anglehist.png",
             dataset=["laci-joint", "covid-joint", "gfp-brightness"],

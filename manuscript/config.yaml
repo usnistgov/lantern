@@ -1,5 +1,6 @@
 gfp:
   label: avGFP
+  N: 45000
   
   phenotypes:
     brightness: ["phenotype"]
@@ -16,6 +17,7 @@ gfp:
 
 laci:
   label: LacI
+  N: 40000
   
   phenotypes:
     joint: ["ec50-norm", "ginf-norm"]
@@ -35,6 +37,7 @@ laci:
       cuda: True
 
 covid:
+  N: 125000
   label: SARS-CoV-2
   substitutions: aa_substitutions
   

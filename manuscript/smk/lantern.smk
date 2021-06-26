@@ -222,6 +222,7 @@ rule lantern_full:
     output:
         "experiments/{ds}-{phenotype}/lantern/full/model.pt",
         "experiments/{ds}-{phenotype}/lantern/full/loss.pt"
+    group: "train"
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -315,6 +316,7 @@ rule lantern_prediction:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}/model.pt"
     output:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}/pred-val.csv"
+    group: "predict"
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -369,6 +371,7 @@ rule lantern_cv_size:
     output:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}-n{n}/model.pt",
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}-n{n}/loss.pt"
+    group: "train"
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -435,6 +438,7 @@ rule lantern_prediction_size:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}-n{n}/model.pt"
     output:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}-n{n}/pred-val.csv"
+    group: "predict"
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""

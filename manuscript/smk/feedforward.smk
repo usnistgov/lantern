@@ -25,6 +25,7 @@ rule ff_cv:
         "data/processed/{ds}-{phenotype}.pkl",
     output:
         "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}/model.pt" # note D is depth here
+    group: "train"
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -118,6 +119,7 @@ rule ff_prediction:
         "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}/model.pt"
     output:
         "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}/pred-val.csv"
+    group: "predict"
     run:
         import pickle
 
@@ -176,6 +178,7 @@ rule ff_cv_size:
     output:
         # note D is depth here
         "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}-n{n,\d+}/model.pt"
+    group: "train"
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -278,6 +281,7 @@ rule ff_prediction_size:
         "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}-n{n,\d+}/model.pt"
     output:
         "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}-n{n,\d+}/pred-val.csv"
+    group: "predict"
     run:
         import pickle
 
