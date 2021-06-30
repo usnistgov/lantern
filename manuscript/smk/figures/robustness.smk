@@ -94,6 +94,7 @@ rule robustness:
             default=None,
         )
         cbar_kwargs.update(fget("cbar_kwargs", default={}))
+        cbar_title = fget("cbar_title", default=cbar_title)
 
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", dsget("K", 8))
         model.eval()

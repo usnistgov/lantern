@@ -50,6 +50,7 @@ include: "smk/figures/laplacian.smk"
 include: "smk/figures/additivity.smk"
 include: "smk/figures/highlight.smk"
 include: "smk/figures/dimensions.smk"
+include: "smk/figures/diffops.smk"
 
 rule data:
     input:

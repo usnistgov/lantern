@@ -25,7 +25,7 @@ rule gradient:
             """Get the configuration for the specific dataset"""
             return get(
                 config,
-                f"figures/gradient/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/{pth}",
+                f"figures/diffops/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/{pth}",
                 default=default,
             )
 
@@ -50,12 +50,35 @@ rule gradient:
             f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha",
             default=0.01,
         )
+        cbar_title = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_title",
+            default=None,
+        )
+        cbar_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_kwargs",
+            default={},
+        )
         
         # figure parameters
         N = fget(
             "N",
             default=50,
         )
+        fig_kwargs = fget(
+            "fig_kwargs",
+            default=dict(figsize=(5, 3), dpi=150),
+        )
+        zlim = fget(
+            "zlim",
+            default=None,
+        )
+        plot_kwargs = fget(
+            "plot_kwargs",
+            default={},
+        )
+        cbar_title = fget("cbar_title", default=cbar_title)
 
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", dsget("K", 8))
         model.eval()
@@ -86,11 +109,12 @@ rule gradient:
             p=p,
             alpha=alpha,
             N=N,
+            lim=zlim,
         )
 
         mu, var = grad.gradient(model.surface, Z, z0=z0, p=p)
 
-        fig, ax = plt.subplots(figsize=(4, 4), dpi=150)
+        fig, ax = plt.subplots(**fig_kwargs)
         
         ax.quiver(
             Z.cpu()[:, d0],
@@ -114,6 +138,11 @@ rule gradient:
             fig=fig,
             ax=ax,
             contour_kwargs=dict(alpha=0.6),
+            cbar_kwargs=cbar_kwargs,
+            **plot_kwargs
         )
+
+        if cbar_title is not None:
+            fig.axes[-1].set_title(cbar_title, y=1.04, loc="left", ha="left")
 
         plt.savefig(output[0], bbox_inches="tight")

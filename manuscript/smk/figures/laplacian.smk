@@ -123,7 +123,7 @@ rule laplacian:
         image = mu
         image = image.reshape(Z1.shape)
 
-        fig, ax = plt.subplots(figsize=(5, 3), dpi=150)
+        fig, ax = plt.subplots(**fig_kwargs)
         vmin = -abs(mu).max()
         vmax = abs(mu).max()
 
