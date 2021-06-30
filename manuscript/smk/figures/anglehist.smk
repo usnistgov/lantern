@@ -30,7 +30,7 @@ rule anglehist:
         # "y" is the first argument, "x" is second
         theta = np.arctan2(W[:, 1], W[:, 0])
 
-        H, edges = np.histogram(theta, bins=100, density=True)
+        H, edges = np.histogram(theta, bins=80, density=True)
 
         ax = plt.subplot(111, polar="true")
 
@@ -47,6 +47,6 @@ rule anglehist:
 
         for h, b in zip(H, bars):
             b.set_edgecolor("k")
-            b.set_facecolor(plt.cm.viridis(h / H.max()))
+        #     b.set_facecolor(plt.cm.viridis(h / H.max()))
 
         plt.savefig(output[0], bbox_inches="tight")

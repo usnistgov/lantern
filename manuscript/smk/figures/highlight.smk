@@ -34,9 +34,13 @@ rule gfp_surface_focus:
             log=False,
             image=False,
             mask=False,
+            fig_kwargs=dict(dpi=300, figsize=(3, 2)),
+            cbar_kwargs = dict(aspect=5, shrink=0.6),
+            contour_kwargs=dict(linewidths=3)
         )
+        fig.axes[-1].set_title("avGFP\nBrightness", ha="left", loc="left")
 
-        plt.savefig(output[0], bbox_inches="tight")
+        plt.savefig(output[0], bbox_inches="tight", transparent=True)
 
 rule gfp_surface_bfp1:
     """
@@ -182,6 +186,121 @@ rule gfp_surface_bfp2:
 
         plt.savefig(output[0], bbox_inches="tight")
 
+rule gfp_surface_bfp_all:
+    """
+    """
+
+    input:
+        "data/processed/gfp.csv",
+        "data/processed/gfp-brightness.pkl",
+        "experiments/gfp-brightness/lantern/full/model.pt"
+    output:
+        "figures/gfp-brightness/brightness/surface-bfp-all.png"
+    run:
+        df, ds, model = util.load_run("gfp", "brightness", "lantern", "full", 8)
+        model.eval()
+        raw = "medianBrightness"
+
+        z, fmu, fvar, Z1, Z2, y, Z = util.buildLandscape(
+            model,
+            ds,
+            mu=df[raw].mean() if raw is not None else 0,
+            std=df[raw].std() if raw is not None else 1,
+            log=log,
+            p=0,
+            alpha=0.001,
+            lim = [-1.1, 2.6, -0.88, 0.22]
+        )
+
+        fig, ax = plt.subplots(figsize=(4, 3), dpi=300)
+        fig, norm, cmap, vrange = util.plotLandscape(
+            z,
+            fmu,
+            fvar,
+            Z1,
+            Z2,
+            log=False,
+            image=False,
+            mask=False,
+            fig = fig,
+            ax = ax,
+            plotOrigin=False,
+            levels=20,
+            cbar_kwargs = dict(aspect=5, shrink=0.6),
+        )
+        fig.axes[-1].set_title("avGFP\nBrightness", ha="left", loc="left")
+
+        X, y = ds[: len(ds)][:2]
+
+        # get variant info
+        w_mu = model.basis.W_mu.detach()[:, model.basis.order].numpy()
+
+        wt = np.zeros(w_mu.shape[1])
+
+
+        # foundational
+        subs = "SY64H".split(":")
+        labels = ["Y66H"]
+        ind = [ds.tokenizer.tokens.index(s) for s in subs]
+
+        # from wild-type
+        for i in ind:
+            _z = w_mu[i, :]
+            plt.arrow(
+                wt[0],
+                wt[1],
+                _z[0],
+                _z[1],
+                color="black",
+                label="+{}".format(labels[ind.index(i)]),
+                length_includes_head=True,
+                width=0.02,
+                zorder=100,
+            )
+
+
+        # substitutions
+        subs = ["SY143F", "SS63T", "SH229L",'SY37N', 'SN103T', 'SY143F', 'SI169V', 'SN196S', 'SA204V']
+        labels = ["Y145F", "S65T", "H231L",'Y39N', 'N105T', 'Y145F', 'I171V', 'N198S', 'A206V']
+        ind = [ds.tokenizer.tokens.index(s) for s in subs]
+
+        # from wild-type
+        for i in ind:
+            _z = w_mu[i, :]
+            plt.arrow(
+                wt[0],
+                wt[1],
+                _z[0],
+                _z[1],
+                color="C{}".format(ind.index(i)),
+                label="+{}".format(labels[ind.index(i)]),
+                length_includes_head=True,
+                width=0.01,
+                zorder=100,
+            )
+
+        plt.legend(
+            bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
+            loc="lower left",
+            ncol=5,
+            # mode="expand",
+            borderaxespad=0.02,
+            labelspacing=0.1,
+            handletextpad=0.2,
+            columnspacing=0.3,
+            handlelength=0.6,
+        )
+
+        # fig.legend(
+        #     ncol=1,
+        #     bbox_to_anchor=(1.01, 0.9),
+        #     loc="upper left",
+        #     borderaxespad=0.02,
+        # )
+
+        plt.savefig(output[0], bbox_inches="tight")
+
+
 rule laci_parametric:
     """
     Parametric plot of LacI allosteric surface
@@ -211,7 +330,7 @@ rule laci_parametric:
                     np.log10(allostery.K_I_0 * 0.1), np.log10(allostery.K_I_0 * 10), 100
                 )
             ),
-            label=r"$\log(K_I)$",
+            label=r"$K_I$",
         )
 
         plt.plot(
@@ -261,7 +380,7 @@ rule laci_parametric:
                     100,
                 )
             ),
-            label=r"$\log(K_A)$",
+            label=r"$K_A$",
         )
 
         plt.scatter(allostery.ec50(), allostery.ginf(), c="k", zorder=100)
@@ -270,7 +389,7 @@ rule laci_parametric:
         plt.semilogy()
 
         plt.xlabel(r"$\mathrm{EC}_{50}$")
-        plt.ylabel(r"$\mathrm{G}_{\infty}$")
+        plt.ylabel(r"$\mathrm{G}_{\infty} / \mathrm{G}_{\infty}^{max}$")
 
         plt.legend(
             bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
@@ -298,7 +417,13 @@ rule laci_parametric:
         m2 = df["ginf"].mean()
         s2 = df["ginf"].std()
 
-        plt.scatter(10 ** (0.2378 * s1 + m1), 10 ** (0.4157 * s2 + m2), c="k", zorder=100)
+        plt.scatter(
+            10 ** (0.2378 * s1 + m1),
+            # 10 ** (0.4157 * s2 + m2) / (10 ** (0.4157 * s2 + m2)).max(),
+            10 ** (0.4157 * s2 + m2) / 10**df["ginf"].max(),
+            c="k",
+            zorder=100,
+        )
 
         def plotParamFill(mu, std, m1, s1, m2, s2, color):
             mu1 = mu[:, 0]
@@ -308,11 +433,18 @@ rule laci_parametric:
             xf = np.concatenate((mu1 - 2 * std1, (mu1 + 2 * std1)[::-1]))
             yf = np.concatenate((mu2 - 2 * std2, (mu2 + 2 * std2)[::-1]))
 
-            plt.fill(10 ** (xf * s1 + m1), 10 ** (yf * s2 + m2), alpha=0.6, color=color)
+            plt.fill(
+                10 ** (xf * s1 + m1),
+                # 10 ** (yf * s2 + m2) / 10 ** (yf * s2 + m2).max(),
+                10 ** (yf * s2 + m2) / 10 ** df["ginf"].max(),
+                alpha=0.6,
+                color=color,
+            )
 
         plt.plot(
             10 ** (f1.mean[:, 0] * s1 + m1),
-            10 ** (f1.mean[:, 1] * s2 + m2),
+            # 10 ** (f1.mean[:, 1] * s2 + m2) / (10 ** (f1.mean[:, 1] * s2 + m2)).max(),
+            10 ** (f1.mean[:, 1] * s2 + m2) / (10 ** df["ginf"]).max(),
             label=r"$\mathbf{z}_1$",
             c="C4",
         )
@@ -320,7 +452,8 @@ rule laci_parametric:
 
         plt.plot(
             10 ** (f2.mean[:, 0] * s1 + m1),
-            10 ** (f2.mean[:, 1] * s2 + m2),
+            # 10 ** (f2.mean[:, 1] * s2 + m2) / (10 ** (f2.mean[:, 1] * s2 + m2)).max(),
+            10 ** (f2.mean[:, 1] * s2 + m2) / 10**df["ginf"].max(),
             label=r"$\mathbf{z}_2$",
             c="C8",
         )
@@ -342,6 +475,9 @@ rule laci_parametric:
         plt.tight_layout()
 
         plt.savefig(output[0], bbox_inches="tight")
+
+COVID_BINDING_COLOR = "fuchsia"
+COVID_STABILITY_COLOR = "limegreen"
 
 rule covid_anglehist:
     """
@@ -368,9 +504,9 @@ rule covid_anglehist:
         n1 = w1 / np.linalg.norm(w1)
 
         theta = np.arctan2(W[:, 1], W[:, 0])
-        H, edges = np.histogram(theta, bins=100, density=True)
+        H, edges = np.histogram(theta, bins=50, density=True)
 
-        plt.figure(dpi=100, figsize=(3, 3))
+        fig = plt.figure(dpi=300, figsize=(2, 2))
         ax = plt.subplot(111, polar="true",)
 
         bars = ax.bar(
@@ -379,13 +515,23 @@ rule covid_anglehist:
 
         (ind,) = np.where(H == H.max())
         angle = edges[ind + 1]
-        ax.plot(
-            [angle] * 2,
-            [0, H.max() * 1.5],
-            c="C2",
-            zorder=101,
+        # ax.plot(
+        #     [angle] * 2,
+        #     [0, H.max() * 1.5],
+        #     c=COVID_STABILITY_COLOR,
+        #     zorder=101,
+        #     label="Stability\naxis",
+        #     lw=2,
+        # )
+        ax.arrow(
+            angle,
+            0,
+            0,
+            H.max()*1.8,
+            fc=COVID_STABILITY_COLOR,
+            zorder=90,
             label="Stability axis",
-            lw=2,
+            width=0.05,
         )
 
         ax.set_yticklabels([])
@@ -396,18 +542,56 @@ rule covid_anglehist:
         n2 = w2 / np.linalg.norm(w2)
         angle2 = np.arctan2(n2[1], n2[0])
 
-        ax.plot(
-            [angle2] * 2,
-            [0, H.max() * 1.5],
-            c="C4",
-            zorder=101,
+        # ax.plot(
+        #     [angle2] * 2,
+        #     [0, H.max() * 1.5],
+        #     c=COVID_BINDING_COLOR,
+        #     zorder=101,
+        #     label="Binding\naxis",
+        #     lw=2,
+        # )
+        ax.arrow(
+            angle2,
+            0,
+            0,
+            H.max()*1.8,
+            fc=COVID_BINDING_COLOR,
+            zorder=90,
             label="Binding axis",
-            lw=2,
+            width=0.05,
         )
-        plt.legend()
-        plt.savefig(output[0], bbox_inches="tight")
 
-rule covid_axes_surface:
+        # legend above
+        # plt.legend(
+        #     bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
+        #     loc="lower left",
+        #     ncol=2,
+        #     mode="expand",
+        #     borderaxespad=0.0,
+        # )
+
+        # plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0)
+        # plt.legend(
+        #     bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
+        #     loc="lower left",
+        #     ncol=1,
+        #     mode="expand",
+        #     borderaxespad=0.0,
+        # )
+        # plt.legend(
+        #     bbox_to_anchor=(1.05, 1.04),
+        #     loc="upper right",
+        #     borderaxespad=0.0,
+        #     ncol=1,
+        #     labelspacing=0.1,
+        #     handletextpad=0.2,
+        #     columnspacing=0.3,
+        #     handlelength=0.6
+        # )
+
+        plt.savefig(output[0], bbox_inches="tight", transparent=True)
+
+rule covid_axes_parametric:
     """
     Parametric plot of binding/expression versus different axes
     """
@@ -477,42 +661,43 @@ rule covid_axes_surface:
             lw1, hi1 = f1.confidence_region()
             lw2, hi2 = f2.confidence_region()
 
-        plt.figure(figsize=(3, 3), dpi=200)
+        plt.figure(figsize=(6, 2), dpi=200)
 
-        plt.subplot(211)
+        plt.subplot(121)
         mu = df["func_score_bind"].mean()
         std = df["func_score_bind"].std()
-        plt.plot(span, f1.mean[:, 1] * std + mu, c="C2")
+        plt.plot(span, f1.mean[:, 1] * std + mu, c=COVID_STABILITY_COLOR)
         plt.fill_between(
-            span, lw1[:, 1] * std + mu, hi1[:, 1] * std + mu, color="C2", alpha=0.8
+            span, lw1[:, 1] * std + mu, hi1[:, 1] * std + mu, color=COVID_STABILITY_COLOR, alpha=0.4
         )
 
-        plt.plot(span, f2.mean[:, 1] * std + mu, c="C4")
+        plt.plot(span, f2.mean[:, 1] * std + mu, c=COVID_BINDING_COLOR)
         plt.fill_between(
-            span, lw2[:, 1] * std + mu, hi2[:, 1] * std + mu, color="C4", alpha=0.8
+            span, lw2[:, 1] * std + mu, hi2[:, 1] * std + mu, color=COVID_BINDING_COLOR, alpha=0.4
         )
-        plt.ylabel("$\\log K_D$")
-        plt.xticks([])
+        #plt.xticks([])
+        plt.xlabel("projection")
         plt.axvline(0, c="k", ls="--")
+        plt.ylabel("RBD-ACE2 $\log_{10} K_d$")
 
-        plt.subplot(212)
+        plt.subplot(122)
         mu = df["func_score_exp"].mean()
         std = df["func_score_exp"].std()
-        plt.plot(span, f1.mean[:, 0] * std + mu, c="C2")
+        plt.plot(span, f1.mean[:, 0] * std + mu, c=COVID_STABILITY_COLOR)
         plt.fill_between(
-            span, lw1[:, 0] * std + mu, hi1[:, 0] * std + mu, color="C2", alpha=0.8
+            span, lw1[:, 0] * std + mu, hi1[:, 0] * std + mu, color=COVID_STABILITY_COLOR, alpha=0.4
         )
 
-        plt.plot(span, f2.mean[:, 0] * std + mu, c="C4")
+        plt.plot(span, f2.mean[:, 0] * std + mu, c=COVID_BINDING_COLOR)
         plt.fill_between(
-            span, lw2[:, 0] * std + mu, hi2[:, 0] * std + mu, color="C4", alpha=0.8
+            span, lw2[:, 0] * std + mu, hi2[:, 0] * std + mu, color=COVID_BINDING_COLOR, alpha=0.4
         )
         plt.xlabel("projection")
-        plt.ylabel(r"$\Delta\log$MFI")
+        plt.ylabel("RBD $\Delta\log$MFI")
         plt.axvline(0, c="k", ls="--")
 
         plt.tight_layout()
-        plt.savefig(output[0], bbox_inches="tight")
+        plt.savefig(output[0], bbox_inches="tight", transparent=True)
 
 rule covid_parametric:
     """
@@ -617,7 +802,7 @@ rule covid_parametric:
             c="C4",
         )
 
-        plt.ylabel("$\\log K_D$")
+        plt.ylabel("$\\log_{10} K_D$")
         plt.xlabel(r"$\Delta\log$MFI")
 
         plt.tight_layout()
@@ -637,6 +822,8 @@ rule covid_variants:
         "figures/covid-joint/variants.png",
         "figures/covid-joint/variants_project.png"
     run:
+        from cycler import cycler
+
         df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)
         model.eval()
 
@@ -657,8 +844,7 @@ rule covid_variants:
 
         with torch.no_grad():
             Z = model.basis(X)
-            f = model(X[sel, :])
-
+            # f = model(X[sel, :])
             Z = Z[:, model.basis.order]
 
 
@@ -677,7 +863,7 @@ rule covid_variants:
             std=df["func_score_bind"].std(),
         )
 
-        fig, ax = plt.subplots(figsize=(5, 3), dpi=200)
+        fig, ax = plt.subplots(figsize=(4, 3), dpi=300)
 
         fig, norm, cmap, vrange = util.plotLandscape(
             z,
@@ -685,24 +871,30 @@ rule covid_variants:
             fvar,
             Z1,
             Z2,
-            levels=50,
+            levels=100,
             mask=False,
             image=False,
             plotOrigin=False,
             fig=fig,
             ax=ax,
+            colorbar=True,
+            # contour_label="RBD-ACE2 $\log K_d$",
+            contour_kwargs=dict(linewidths=3),
+            cbar_kwargs=dict(aspect=5, shrink=0.8)
         )
 
-        _, _, _, im = plt.hist2d(
-            Z[:, 0].numpy(),
-            Z[:, 1].numpy(),
-            bins=(np.linspace(-0.4, 2.2), np.linspace(-0.4, 2.2)),
-            norm=mpl.colors.LogNorm(),
-            cmap="Oranges",
-        )
+        # _, _, _, im = plt.hist2d(
+        #     Z[:, 0].numpy(),
+        #     Z[:, 1].numpy(),
+        #     bins=(np.linspace(-0.4, 2.2), np.linspace(-0.4, 2.2)),
+        #     norm=mpl.colors.LogNorm(),
+        #     cmap="Oranges",
+        # )
 
         plt.xlim(-0.4, 2.2)
         plt.ylim(-0.2, 2.2)
+
+        colors = ["coral", "cyan", "palegreen"]
 
         for i in range(3):
             plt.arrow(
@@ -710,19 +902,23 @@ rule covid_variants:
                 0,
                 W[ind[i], d0],
                 W[ind[i], d1],
-                fc=f"C{i+4}",
+                # fc=f"C{i+4}",
+                fc=colors[i],
                 label=labels[i],
-                width=0.025,
+                width=0.05,
                 zorder=99,
             )
 
-        ax.set_facecolor("Grey")
-        ax.legend(ncol=2)
+        # ax.set_facecolor("Grey")
+        ax.legend(ncol=1)
 
-        fig.colorbar(im, ax=ax)
+        # add title to cbar axis
+        fig.axes[-1].set_title("RBD-ACE2\n$\log_{10} K_d$", y=1.04, ha="left", loc="left")
+
+        # fig.colorbar(im, ax=ax, location="bottom", pad=0.2)
 
         plt.tight_layout()
-        plt.savefig(output[0], bbox_inches="tight")
+        plt.savefig(output[0], bbox_inches="tight", transparent=False)
 
         """Second figure
         """
@@ -742,13 +938,13 @@ rule covid_variants:
             f = model.surface(Z)
             lower, upper = f.confidence_region()
 
-        fig, ax = plt.subplots(figsize=(4, 3), dpi=200)
+        fig, ax = plt.subplots(figsize=(2, 2), dpi=200)
         plt.plot(span, f.mean[:, 1] * std + mu, zorder=0, color="k")
         plt.fill_between(
             span,
             lower[:, 1] * std + mu,
             upper[:, 1] * std + mu,
-            alpha=0.6,
+            alpha=0.2,
             zorder=0,
             color="k",
         )
@@ -756,8 +952,19 @@ rule covid_variants:
         # projection scores
         ranks = torch.argsort(scores).numpy()[::-1][:10]
 
-        cm = plt.get_cmap("hsv")
-        colors = cm(np.linspace(0, 1, len(ranks)))
+        # remove N501Y
+        ranks = [r for r in ranks if r != ind[0]]
+
+        # remove those without single-mutant data
+
+        # cm = plt.get_cmap("hsv")
+        # colors = cm(np.linspace(0, 1, len(ranks)))
+        # color.cycle_cmap(8, cmap='pastel', ax=ax)
+        colors = plt.get_cmap("Set1")(np.linspace(0, 1, 9))
+        cind = 0
+        # ax.set_prop_cycle(cycler(color=color))
+        anchor = None
+        shift = 0.05
         for i, r in enumerate(ranks):
 
             tok = ds.tokenizer.tokens[r]
@@ -766,19 +973,261 @@ rule covid_variants:
                 tmp = df[df.aa_substitutions == tok]
                 mmu = tmp.func_score_bind.mean()
                 sem = (tmp.func_score_var_bind.mean() / tmp.shape[0]) ** 0.5
-                plt.errorbar(proj[r], mmu, sem, c=colors[i], label=lab, fmt="o")
+
+                offset = 0
+                if lab == "Q498W":
+                    offset = -shift
+                    anchor = (proj[r], mmu)
+                elif lab == "Y453F":
+                    offset = shift
+
+                plt.errorbar(
+                    proj[r] + offset, mmu, sem, c=colors[cind], label=lab, fmt="o"
+                )
+                # plt.errorbar(proj[r], mmu, sem, c=f"C{i}", label=lab, fmt="o")
+
+                cind += 1
+
+        # plt.plot(
+        #     [anchor[0] - shift, anchor[0] + shift],
+        #     [anchor[1]] * 2,
+        #     # ls="--",
+        #     color="k",
+        #     # zorder=0,
+        # )
+        # plt.scatter(*anchor, c="k", zorder=0, s=20, marker="d")
+
+        # plot N501Y
+        tmp = df[df.aa_substitutions == subs[0]]
+        mmu = tmp.func_score_bind.mean()
+        sem = (tmp.func_score_var_bind.mean() / tmp.shape[0]) ** 0.5
+        plt.errorbar(proj[ind[0]], mmu, sem, c="k", label="N501Y", fmt="o")
+        
 
         plt.axvline(0, c="r", ls="--")
         plt.xlabel("projection")
-        plt.ylabel("predicted $K_d$")
+        plt.ylabel("RBD-ACE2 $\log K_d$")
 
-        fig.legend(
-            loc="lower left",
-            ncol=5,
-            bbox_to_anchor=(0.0, 0.9),
+        # upper legend
+        # fig.legend(
+        #     loc="lower left",
+        #     ncol=5,
+        #     bbox_to_anchor=(0.0, 0.9),
+        #     labelspacing=0.1,
+        #     handletextpad=-0.5,
+        #     columnspacing=0.3,
+        # )
+
+        # lower legend
+        # fig.legend(
+        #     loc="upper left",
+        #     ncol=4,
+        #     bbox_to_anchor=(0.0, 0.1),
+        #     labelspacing=0.1,
+        #     handletextpad=-0.5,
+        #     columnspacing=0.3,
+        # )
+        
+        # rhs legend
+        plt.legend(
+            bbox_to_anchor=(1.05, 1),
+            loc="upper left",
+            borderaxespad=0.0,
+            ncol=1,
             labelspacing=0.1,
             handletextpad=-0.5,
             columnspacing=0.3,
         )
 
         plt.savefig(output[1], bbox_inches="tight", transparent=True)
+
+rule covid_axes_surface:
+    """
+    Covid axes surfaces
+    """
+
+    input:
+        "data/processed/covid.csv",
+        "data/processed/covid-joint.pkl",
+        "experiments/covid-joint/lantern/full/model.pt"
+    output:
+        "figures/covid-joint/axes-binding.png",
+        "figures/covid-joint/axes-expression.png",
+        # "figures/covid-joint/axes-expression-with-hist.png"
+    run:
+
+        df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)
+        model.eval()
+
+        X = ds[:len(ds)][0]
+        with torch.no_grad():
+            Z = model.basis(X)
+            Z = Z[:, model.basis.order]
+
+        W = model.basis.W_mu[:, model.basis.order].detach().cpu().numpy()
+
+        w1 = np.mean(W, axis=0)
+        n1 = w1 / np.linalg.norm(w1)
+        w2 = -np.ones(2)
+        n2 = w2 / np.linalg.norm(w2)
+
+        """Binding surface
+        """
+        from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+        d0 = model.basis.order[0]
+        d1 = model.basis.order[1]
+
+        span = torch.linspace(-10, 10, 100)
+
+        z, fmu, fvar, Z1, Z2, _y, _Z = util.buildLandscape(
+            model,
+            ds,
+            p=1,
+            mu=df["func_score_bind"].mean(),
+            std=df["func_score_bind"].std(),
+        )
+
+
+        fig, ax = plt.subplots(figsize=(4, 3), dpi=200)
+
+        lw, hi = (-3.1, 1.8)
+
+        fig, norm, cmap, vrange = util.plotLandscape(
+            z,
+            fmu,
+            fvar,
+            Z1,
+            Z2,
+            levels=30,
+            mask=False,
+            image=False,
+            plotOrigin=False,
+            fig=fig,
+            ax=ax,
+            cbar_kwargs=dict(aspect=5, shrink=0.8)
+            # contour_kwargs=dict(linewidths=3)
+        )
+
+        # _, _, _, im = plt.hist2d(
+        #     Z[:, 0].numpy(),
+        #     Z[:, 1].numpy(),
+        #     bins=(np.linspace(lw, hi), np.linspace(lw, hi)),
+        #     norm=mpl.colors.LogNorm(),
+        #     cmap="Reds",
+        # )
+
+        plt.xlim(lw, hi)
+        plt.ylim(lw, hi)
+
+        plt.arrow(
+            0,
+            0,
+            n1[0].item(),
+            n1[1].item(),
+            width=0.10,
+            zorder=100,
+            fc=COVID_STABILITY_COLOR,
+            label="Stability axis",
+        )
+
+        plt.plot(n2[0].item() * span, n2[1].item() * span, ls="--", c="k")
+        plt.arrow(
+            0,
+            0,
+            n2[0].item(),
+            n2[1].item(),
+            width=0.10,
+            zorder=100,
+            fc=COVID_BINDING_COLOR,
+            label="Binding axis",
+        )
+
+        # ax.set_facecolor("Grey")
+        # ax.legend()
+
+        # fig.colorbar(im, ax=ax)
+
+        # colorbar title
+        fig.axes[-1].set_title("RBD-ACE2\n$\log_{10} K_d$", y=1.04, loc="left", ha="left")
+
+        plt.tight_layout()
+        plt.savefig(output[0], bbox_inches="tight", transparent=False)
+
+        """Expression surface
+        """
+
+        z, fmu, fvar, Z1, Z2, _y, _Z = util.buildLandscape(
+            model,
+            ds,
+            p=0,
+            mu=df["func_score_exp"].mean(),
+            std=df["func_score_exp"].std(),
+        )
+
+
+        fig, ax = plt.subplots(figsize=(4, 3), dpi=200)
+
+        lw, hi = (-3.1, 1.8)
+
+        fig, norm, cmap, vrange = util.plotLandscape(
+            z,
+            fmu,
+            fvar,
+            Z1,
+            Z2,
+            levels=30,
+            mask=False,
+            image=False,
+            plotOrigin=False,
+            fig=fig,
+            ax=ax,
+            cbar_kwargs=dict(aspect=5, shrink=0.8)
+            # contour_kwargs=dict(linewidths=3)
+        )
+
+        # _, _, _, im = plt.hist2d(
+        #     Z[:, 0].numpy(),
+        #     Z[:, 1].numpy(),
+        #     bins=(np.linspace(lw, hi), np.linspace(lw, hi)),
+        #     norm=mpl.colors.LogNorm(),
+        #     cmap="Reds",
+        # )
+
+
+        plt.xlim(lw, hi)
+        plt.ylim(lw, hi)
+
+        plt.arrow(
+            0,
+            0,
+            n1[0].item(),
+            n1[1].item(),
+            width=0.10,
+            zorder=100,
+            fc=COVID_STABILITY_COLOR,
+            label="Stability axis",
+        )
+
+        plt.plot(n2[0].item() * span, n2[1].item() * span, ls="--", c="k")
+        plt.arrow(
+            0,
+            0,
+            n2[0].item(),
+            n2[1].item(),
+            width=0.10,
+            zorder=100,
+            fc=COVID_BINDING_COLOR,
+            label="Binding axis",
+        )
+
+        # ax.set_facecolor("Grey")
+
+        # colorbar title
+        fig.axes[-1].set_title("RBD\n$\Delta \log$MFI", y=1.04, loc="left", ha="left")
+
+        plt.tight_layout()
+        plt.savefig(output[1], bbox_inches="tight", transparent=False)
+
+        # fig.colorbar(im, ax=ax, location="bottom", pad=0.2)
+        # plt.savefig(output[2], bbox_inches="tight", transparent=False)

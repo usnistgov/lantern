@@ -25,7 +25,7 @@ rule laplacian:
             """Get the configuration for the specific dataset"""
             return get(
                 config,
-                f"figures/laplacian/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/{pth}",
+                f"figures/diffops/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/{pth}",
                 default=default,
             )
 
@@ -50,6 +50,16 @@ rule laplacian:
             f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha",
             default=0.01,
         )
+        cbar_title = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_title",
+            default=None,
+        )
+        cbar_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_kwargs",
+            default={},
+        )
         
         # figure parameters
         dims = fget(
@@ -59,6 +69,18 @@ rule laplacian:
         N = fget(
             "N",
             default=50,
+        )
+        fig_kwargs = fget(
+            "fig_kwargs",
+            default=dict(figsize=(5, 3), dpi=150),
+        )
+        zlim = fget(
+            "zlim",
+            default=None,
+        )
+        plot_kwargs = fget(
+            "plot_kwargs",
+            default={},
         )
 
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", dsget("K", 8))
@@ -90,6 +112,7 @@ rule laplacian:
             p=p,
             alpha=alpha,
             N=N,
+            lim=zlim,
         )
 
         mu, var = lapl.laplacian(
@@ -101,7 +124,6 @@ rule laplacian:
         image = image.reshape(Z1.shape)
 
         fig, ax = plt.subplots(figsize=(5, 3), dpi=150)
-        midpoint = None
         vmin = -abs(mu).max()
         vmax = abs(mu).max()
 
@@ -111,21 +133,18 @@ rule laplacian:
             image,
             alpha=0.9,
             extent=(Z[:, d0].min(), Z[:, d0].max(), Z[:, d1].min(), Z[:, d1].max()),
-            origin="upper",  # this is a guess on the right way to do it, not sure why it is though
+            origin="lower"
+            if zlim is not None
+            else "upper",  # this is a guess on the right way to do it, not sure why it is though
             aspect="auto",
             cmap=cmap,
             vmin=vmin,
             vmax=vmax,
             interpolation="lanczos",
-            norm=MidpointNormalize(
-                vmin=image.min(),
-                vcenter=(image.max() - image.min()) * midpoint + image.min(),
-                vmax=image.max(),
-            )
-            if midpoint is not None
-            else None,
         )
 
+        fig.colorbar(im, ax=ax, **cbar_kwargs)
+        fig.axes[-1].set_title("Laplacian", y=1.04, loc="left", ha="left")
         
         fig, norm, cmap, vrange = util.plotLandscape(
             z,
@@ -141,8 +160,11 @@ rule laplacian:
             fig=fig,
             ax=ax,
             contour_kwargs=dict(alpha=0.6),
+            cbar_kwargs=cbar_kwargs,
+            **plot_kwargs
         )
 
-        fig.colorbar(im, ax=ax)
+        if cbar_title is not None:
+            fig.axes[-1].set_title(cbar_title, y=1.04, loc="left", ha="left")
 
         plt.savefig(output[0], bbox_inches="tight")

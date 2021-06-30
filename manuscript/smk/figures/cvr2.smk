@@ -113,6 +113,7 @@ rule cvr2:
             + geom_boxplot(outlier_alpha=0.0)
             + geom_jitter()
             + facet_wrap("dataset", scales="free_y", ncol=ncol)
+            + theme_matplotlib()
             + theme(
                 subplots_adjust={"wspace": 0.25},
                 figure_size=(9, 6),

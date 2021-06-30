@@ -10,7 +10,6 @@ import numpy as np
 from plotnine import *
 from plotnine.options import *
 
-
 configfile: "config.yaml"
 
 DATASETS = [
@@ -50,6 +49,7 @@ include: "smk/figures/robustness.smk"
 include: "smk/figures/laplacian.smk"
 include: "smk/figures/additivity.smk"
 include: "smk/figures/highlight.smk"
+include: "smk/figures/dimensions.smk"
 
 rule data:
     input:

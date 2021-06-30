@@ -134,6 +134,8 @@ def plotLandscape(
     levels=8,
     contour_kwargs={},
     varColor=False,
+    cbar_kwargs={},
+    fig_kwargs=dict(dpi=200, figsize=(6, 4)),
 ):
 
     # store for boolean check later
@@ -157,7 +159,7 @@ def plotLandscape(
     mask[:, :, 3] = (relvar - relvar.min()) / (1 - relvar.min()) * maxshade
 
     if fig is None or ax is None:
-        fig, ax = plt.subplots(dpi=200, figsize=(6, 4))
+        fig, ax = plt.subplots(**fig_kwargs)
 
     if image:
         ax.imshow(
@@ -250,7 +252,7 @@ def plotLandscape(
     sm.set_array([])
 
     if colorbar:
-        cbar = fig.colorbar(sm, ax=ax)
+        cbar = fig.colorbar(sm, ax=ax, **cbar_kwargs)
         cbar.ax.set_ylabel(contour_label)
 
     return fig, norm, cs.cmap, vrange

@@ -101,6 +101,7 @@ rule sample_size:
             + stat_summary(geom=geom_line)
             + ylab("$R^2$")
             + xlab("observations")
+            + theme_matplotlib()
             + theme(figure_size=(2, 2), dpi=300)
         )
 

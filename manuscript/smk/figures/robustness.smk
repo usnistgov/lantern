@@ -14,6 +14,17 @@ rule robustness:
         "figures/{ds}-{phenotype}/{target}/robustness.png"
 
     run:
+        class MidpointNormalize(mpl.colors.Normalize):
+            def __init__(self, vmin=None, vmax=None, vcenter=None, clip=False):
+                self.vcenter = vcenter
+                mpl.colors.Normalize.__init__(self, vmin, vmax, clip)
+
+            def __call__(self, value, clip=None):
+                # I'm ignoring masked values and all kinds of edge cases to make a
+                # simple example...
+                x, y = [self.vmin, self.vcenter, self.vmax], [0, 0.5, 1]
+                return np.ma.masked_array(np.interp(value, x, y))
+
         from lantern.diffops import grad
         from lantern.diffops import metric
 
@@ -25,7 +36,7 @@ rule robustness:
             """Get the configuration for the specific dataset"""
             return get(
                 config,
-                f"figures/gradient/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/{pth}",
+                f"figures/diffops/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/{pth}",
                 default=default,
             )
 
@@ -50,12 +61,39 @@ rule robustness:
             f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha",
             default=0.01,
         )
+        cbar_title = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_title",
+            default=None,
+        )
+        cbar_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_kwargs",
+            default={},
+        )
         
         # figure parameters
         N = fget(
             "N",
             default=50,
         )
+        fig_kwargs = fget(
+            "fig_kwargs",
+            default=dict(figsize=(5, 3), dpi=150),
+        )
+        zlim = fget(
+            "zlim",
+            default=None,
+        )
+        plot_kwargs = fget(
+            "plot_kwargs",
+            default={},
+        )
+        midpoint = fget(
+            "midpoint",
+            default=None,
+        )
+        cbar_kwargs.update(fget("cbar_kwargs", default={}))
 
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", dsget("K", 8))
         model.eval()
@@ -86,14 +124,14 @@ rule robustness:
             p=p,
             alpha=alpha,
             N=N,
+            lim=zlim
         )
 
         mu, var = grad.gradient(model.surface, Z, z0=z0, p=p)
         robustness_surf = metric.kernel(mu, var)
 
-        fig, ax = plt.subplots(figsize=(4, 4), dpi=150)
+        fig, ax = plt.subplots(**fig_kwargs)
         
-        midpoint = None
         vmin = 0
         vmax = 1
 
@@ -105,7 +143,9 @@ rule robustness:
             vmin=vmin,
             vmax=vmax,
             interpolation="lanczos",
-            origin="upper",
+            origin="lower"
+            if zlim is not None
+            else "upper",  # this is a guess on the right way to do it, not sure why it is though
             norm=MidpointNormalize(
                 vmin=robustness_surf.min(),
                 vcenter=(robustness_surf.max() - robustness_surf.min()) * midpoint
@@ -116,6 +156,9 @@ rule robustness:
             else None,
         )
 
+        fig.colorbar(im, ax=ax, **cbar_kwargs)
+        if cbar_title is not None:
+            fig.axes[-1].set_title("robustness", y=1.04, loc="left", ha="left")
 
         fig, norm, cmap, vrange = util.plotLandscape(
             z,
@@ -131,6 +174,12 @@ rule robustness:
             fig=fig,
             ax=ax,
             contour_kwargs=dict(alpha=0.6),
+            cbar_kwargs=cbar_kwargs,
+            **plot_kwargs
         )
+        if cbar_title is not None:
+            fig.axes[-1].set_title(cbar_title, y=1.04, loc="left", ha="left")
+
+        # plt.tight_layout()
 
         plt.savefig(output[0], bbox_inches="tight")

@@ -14,6 +14,18 @@ rule additivity:
         "figures/{ds}-{phenotype}/{target}/additivity.png"
 
     run:
+
+        class MidpointNormalize(mpl.colors.Normalize):
+            def __init__(self, vmin=None, vmax=None, vcenter=None, clip=False):
+                self.vcenter = vcenter
+                mpl.colors.Normalize.__init__(self, vmin, vmax, clip)
+
+            def __call__(self, value, clip=None):
+                # I'm ignoring masked values and all kinds of edge cases to make a
+                # simple example...
+                x, y = [self.vmin, self.vcenter, self.vmax], [0, 0.5, 1]
+                return np.ma.masked_array(np.interp(value, x, y))
+
         from lantern.diffops import lapl
         from lantern.diffops import metric
 
@@ -25,7 +37,7 @@ rule additivity:
             """Get the configuration for the specific dataset"""
             return get(
                 config,
-                f"figures/laplacian/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/{pth}",
+                f"figures/diffops/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/{pth}",
                 default=default,
             )
 
@@ -50,6 +62,16 @@ rule additivity:
             f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha",
             default=0.01,
         )
+        cbar_title = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_title",
+            default=None,
+        )
+        cbar_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_kwargs",
+            default={},
+        )
         
         # figure parameters
         dims = fget(
@@ -59,6 +81,22 @@ rule additivity:
         N = fget(
             "N",
             default=50,
+        )
+        fig_kwargs = fget(
+            "fig_kwargs",
+            default=dict(figsize=(5, 3), dpi=150),
+        )
+        zlim = fget(
+            "zlim",
+            default=None,
+        )
+        plot_kwargs = fget(
+            "plot_kwargs",
+            default={},
+        )
+        midpoint = fget(
+            "midpoint",
+            default=None,
         )
 
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", dsget("K", 8))
@@ -90,6 +128,7 @@ rule additivity:
             p=p,
             alpha=alpha,
             N=N,
+            lim=zlim,
         )
 
         mu, var = lapl.laplacian(
@@ -98,11 +137,7 @@ rule additivity:
         additivity_surf = metric.kernel(mu, var)
 
 
-        image = mu
-        image = image.reshape(Z1.shape)
-
-        fig, ax = plt.subplots(figsize=(5, 3), dpi=150)
-        midpoint = None
+        fig, ax = plt.subplots(**fig_kwargs)
         vmin = 0
         vmax = 1
 
@@ -116,16 +151,21 @@ rule additivity:
             vmin=vmin,
             vmax=vmax,
             interpolation="lanczos",
-            origin="upper",
+            origin="lower"
+            if zlim is not None
+            else "upper",  # this is a guess on the right way to do it, not sure why it is though
             norm=MidpointNormalize(
-                vmin=robustness_surf.min(),
-                vcenter=(robustness_surf.max() - robustness_surf.min()) * midpoint
-                + robustness_surf.min(),
-                vmax=robustness_surf.max(),
+                vmin=additivity_surf.min(),
+                vcenter=(additivity_surf.max() - additivity_surf.min()) * midpoint
+                + additivity_surf.min(),
+                vmax=additivity_surf.max(),
             )
             if midpoint is not None
             else None,
         )
+
+        fig.colorbar(im, ax=ax, **cbar_kwargs)
+        fig.axes[-1].set_title("additivity", y=1.04, loc="left", ha="left")
 
         
         fig, norm, cmap, vrange = util.plotLandscape(
@@ -142,8 +182,11 @@ rule additivity:
             fig=fig,
             ax=ax,
             contour_kwargs=dict(alpha=0.6),
+            cbar_kwargs=cbar_kwargs,
+            **plot_kwargs
         )
+        if cbar_title is not None:
+            fig.axes[-1].set_title(cbar_title, y=1.04, loc="left", ha="left")
 
-        fig.colorbar(im, ax=ax)
 
         plt.savefig(output[0], bbox_inches="tight")
