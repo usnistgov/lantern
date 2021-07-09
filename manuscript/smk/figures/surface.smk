@@ -9,20 +9,67 @@ rule surface:
         "experiments/{ds}-{phenotype}/lantern/full/model.pt"
     output:
         "figures/{ds}-{phenotype}/{target}/surface.png"
-
     run:
 
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
-        
-        alpha = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha", default=0.01)
-        raw = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/raw", default=None)
-        log = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/log", default=False)
-        p = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/p", default=0)
-        image = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/image", default=False)
-        scatter = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/scatter", default=True)
-        mask = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/mask", default=False)
+
+        alpha = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha",
+            default=0.01,
+        )
+        raw = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/raw",
+            default=None,
+        )
+        log = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/log",
+            default=False,
+        )
+        p = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/p",
+            default=0,
+        )
+        image = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/image",
+            default=False,
+        )
+        scatter = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/scatter",
+            default=True,
+        )
+        mask = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/mask",
+            default=False,
+        )
+        cbar_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_kwargs",
+            default={},
+        )
+        fig_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/fig_kwargs",
+            default=dict(dpi=300, figsize=(4, 3)),
+        )
+        cbar_title = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_title",
+            default=None,
+        )
+        plot_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/plot_kwargs",
+            default={},
+        )
 
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", dsget("K", 8))
         model.eval()
@@ -46,6 +93,9 @@ rule surface:
             log=log,
             image=image,
             mask=mask,
+            cbar_kwargs=cbar_kwargs,
+            fig_kwargs=fig_kwargs,
+            **plot_kwargs
         )
 
         if scatter:
@@ -72,5 +122,7 @@ rule surface:
                 np.quantile(z[:, 1], 1 - alpha / 2),
             )
 
+        if cbar_title is not None:
+            fig.axes[-1].set_title(cbar_title, y=1.04, loc="left", ha="left")
 
         plt.savefig(output[0], bbox_inches="tight", verbose=False)

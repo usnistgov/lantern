@@ -1,3 +1,15 @@
+import util
+import src
+from src import allostery
+
+from glob import glob
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import numpy as np
+
+from plotnine import *
+from plotnine.options import *
+
 configfile: "config.yaml"
 
 DATASETS = [
@@ -14,6 +26,7 @@ TORCH_MODELS = [
     "lantern",
     "feedforward-K1-D1-W32",
     "feedforward-K8-D1-W32",
+    "linear"
 ]
 
 MODELS = TORCH_MODELS + ["globalep"]
@@ -22,21 +35,22 @@ MODELS = TORCH_MODELS + ["globalep"]
 include: "smk/data.smk"
 include: "smk/lantern.smk"
 include: "smk/feedforward.smk"
+include: "smk/linear.smk"
 include: "smk/globalep.smk"
-
-import util
-import src
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-from plotnine import *
-from plotnine.options import *
-
+include: "smk/allostery.smk"
 
 include: "smk/figures/cvr2.smk"
 include: "smk/figures/calibration.smk"
 include: "smk/figures/surface.smk"
 include: "smk/figures/sample-size.smk"
 include: "smk/figures/anglehist.smk"
+include: "smk/figures/gradient.smk"
+include: "smk/figures/robustness.smk"
+include: "smk/figures/laplacian.smk"
+include: "smk/figures/additivity.smk"
+include: "smk/figures/highlight.smk"
+include: "smk/figures/dimensions.smk"
+include: "smk/figures/diffops.smk"
 
 rule data:
     input:
@@ -140,19 +154,37 @@ rule figures:
     """
     input:
         "figures/cvr2.png",
-        "figures/laci-joint/ec50/surface.png",
-        "figures/laci-joint/ginf/surface.png",
-        "figures/covid-joint/exp/surface.png",
-        "figures/covid-joint/bind/surface.png",
-        "figures/gfp-brightness/brightness/surface.png",
-        "figures/laci-joint/sample-size-ec50.png",
-        "figures/laci-joint/sample-size-0.png",
-        "figures/laci-joint/sample-size-ginf.png",
+        expand(
+            "figures/{dstarg}/{fig}.png",
+            dstarg=[
+                "laci-joint/ec50",
+                "laci-joint/ginf",
+                "covid-joint/exp",
+                "covid-joint/bind",
+                "gfp-brightness/brightness",
+            ],
+            fig=["surface", "gradient", "robustness", "laplacian", "additivity"],
+        ),
+        "figures/laci-joint/sample-size-ec50-norm.png",
+        "figures/laci-joint/sample-size-ginf-norm.png",
+        "figures/gfp-brightness/sample-size-phenotype.png",
+        "figures/covid-joint/sample-size-func_score_norm_exp.png",
+        "figures/covid-joint/sample-size-func_score_norm_bind.png",
         expand(
             "figures/{dataset}/anglehist.png",
             dataset=["laci-joint", "covid-joint", "gfp-brightness"],
         ),
-
+        # highlights
+        "figures/gfp-brightness/brightness/surface-focus.png",
+        "figures/gfp-brightness/brightness/surface-bfp1.png",
+        "figures/gfp-brightness/brightness/surface-bfp2.png",
+        "figures/laci-joint/parametric.png",
+        "figures/covid-joint/anglehist-highlight.png",
+        "figures/covid-joint/axes-surface.png",
+        "figures/covid-joint/parametric.png",
+        "figures/covid-joint/variants.png",
+        "figures/covid-joint/variants_project.png",
+    group: "figure"
     shell:
         "tar -czf figures.tar.gz figures/*"
 
@@ -164,3 +196,10 @@ rule help:
         for rule in workflow.rules:
             print(rule.name)
             print(rule.docstring)
+
+# rule a:
+#     input: expand("tmp/in/{a}.txt", a=range(10))
+#     output: "tmp/out/a.txt"
+# 
+# rule b:
+#     input: "tmp/{a}/out.txt"

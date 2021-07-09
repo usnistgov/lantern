@@ -1,31 +1,63 @@
-import os
-import torch
 from torch import nn
 from torch.nn import functional as F
-from torch.optim import Adam
-from torch.utils.data import Subset
-from dpath.util import get
-from tqdm import tqdm
-import numpy as np
-import pandas as pd
-import mlflow
-from torch.utils.data import DataLoader
+import attr
 
-from lantern.dataset import Dataset
-from lantern.model import Model
-from lantern.model.basis import VariationalBasis
-from lantern.model.surface import Phenotype
 
-from src.predict import predictions
-from src.feedforward import Feedforward
+@attr.s(eq=False)
+class Linear(nn.Module):
 
-rule ff_cv:
+    K: int = attr.ib()
+    D: int = attr.ib()
+
+    def __attrs_post_init__(self):
+        super(Linear, self).__init__()
+        self.layer = nn.Linear(self.K, self.D)
+
+    def _initialize(self, *args, **kwargs):
+        pass
+
+    def forward(self, x):
+        return self.layer(x)
+
+    def loss(self, x, y, noise=None):
+
+        yhat = self(x)
+        loss = F.mse_loss(yhat, y.float(), reduction="none")
+
+        if noise is not None:
+            nz = torch.count_nonzero(noise, dim=0)
+
+            # check that noise is not all zero
+            for i, nnz in enumerate(nz):
+                if nnz > 0:
+                    loss[:, i] = loss[:, i] / noise[:, i]
+
+
+        return loss.mean()
+
+    def _optimizers(self):
+        return []
+
+    def optimizationParams(self):
+        return [{"params": self.parameters()}]
+
+    def _diagnostic_plots(self, *args, **kwargs):
+        return []
+
+    def _additional_logs(self, *args, **kwargs):
+        return {}
+
+    def embed(self, x):
+        raise ValueError("no embedding learned!")
+
+
+rule lin_cv:
     input:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
     output:
-        "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}/model.pt" # note D is depth here
-    group: "train"
+        "experiments/{ds}-{phenotype}/linear/cv{cv,\d+}/model.pt"
+    group: "linear"
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -35,41 +67,33 @@ rule ff_cv:
         df = pd.read_csv(input[0])
         ds = pickle.load(open(input[1], "rb"))
 
-        # Build model and loss
-        DEPTH = int(wildcards.D)
-        WIDTH = int(wildcards.W)
-        model = Feedforward(
-            p=ds.p, K=int(wildcards.K), D=ds.D,
-            depth=DEPTH,
-            width=WIDTH,
-        )
+        # setup model
+        model = Linear(ds.p, ds.D)
 
-        if config.get("cuda", True):
+        # cuda
+        if torch.cuda.is_available():
             model = model.cuda()
             ds.to("cuda")
 
         # Setup training infrastructure
         train = Subset(ds, np.where(df.cv != float(wildcards.cv))[0])
         validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
-        tloader = DataLoader(train, batch_size=dsget("feedforward/batch-size", default=128))
-        vloader = DataLoader(validation, batch_size=dsget("feedforward/batch-size", default=128))
+        tloader = DataLoader(train, batch_size=dsget("linear/batch-size", default=128))
+        vloader = DataLoader(validation, batch_size=dsget("linear/batch-size", default=128))
 
-        lr = dsget("feedforward/lr", default=0.001)
+        lr = dsget("linear/lr", default=0.001)
         optimizer = Adam(model.parameters(), lr=lr)
 
-        mlflow.set_experiment("feedforward cross-validation")
+        mlflow.set_experiment("linear cross-validation")
 
-        # Run optimization
         with mlflow.start_run() as run:
             mlflow.log_param("dataset", wildcards.ds)
-            mlflow.log_param("model", "feedforward")
+            mlflow.log_param("model", "linear")
             mlflow.log_param("lr", lr)
-            mlflow.log_param("depth", DEPTH)
-            mlflow.log_param("width", WIDTH)
             mlflow.log_param("cv", wildcards.cv)
             mlflow.log_param("batch-size", tloader.batch_size)
 
-            pbar = tqdm(range(dsget("feedforward/epochs", default=100)),)
+            pbar = tqdm(range(dsget("linear/epochs", default=50)),)
             best = np.inf
             for e in pbar:
 
@@ -112,14 +136,15 @@ rule ff_cv:
             torch.save(model.state_dict(), os.path.join(base, "model.pt"))
             mlflow.log_artifact(os.path.join(base, "model.pt"), "model")
 
-rule ff_prediction:
+
+rule lin_prediction:
     input:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
-        "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}/model.pt"
+        "experiments/{ds}-{phenotype}/linear/cv{cv,\d+}/model.pt"
     output:
-        "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}/pred-val.csv"
-    group: "predict"
+        "experiments/{ds}-{phenotype}/linear/cv{cv,\d+}/pred-val.csv"
+    group: "linear"
     run:
         import pickle
 
@@ -127,7 +152,7 @@ rule ff_prediction:
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
         
-        CUDA = dsget("feedforward/prediction/cuda", default=True)
+        CUDA = dsget("linear/prediction/cuda", default=True)
 
         # Load the dataset
         df = pd.read_csv(input[0])
@@ -135,15 +160,8 @@ rule ff_prediction:
         train = Subset(ds, np.where(df.cv != float(wildcards.cv))[0])
         validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
 
-        # Build model and loss
-        DEPTH = int(wildcards.D)
-        WIDTH = int(wildcards.W)
-        model = Feedforward(
-            p=ds.p, K=int(wildcards.K), D=ds.D,
-            depth=DEPTH,
-            width=WIDTH,
-        )
-
+        # setup model
+        model = Linear(ds.p, ds.D)
         model.load_state_dict(torch.load(input[2], "cpu"))
         model.eval()
 
@@ -166,36 +184,32 @@ rule ff_prediction:
                     model,
                     validation,
                     cuda=CUDA,
-                    size=dsget("feedforward/prediction/size", default=1024),
-                    pbar=dsget("feedforward/prediction/pbar", default=True)
+                    size=dsget("linear/prediction/size", default=1024),
+                    pbar=dsget("linear/prediction/pbar", default=True)
                 )
             )
 
-rule ff_cv_size:
+rule lin_cv_size:
     input:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
     output:
-        # note D is depth here
-        "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}-n{n,\d+}/model.pt"
-    group: "train"
+        "experiments/{ds}-{phenotype}/linear/cv{cv,\d+}-n{n}/model.pt",
+    group: "linear"
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
-
+        
         # Load the dataset
         df = pd.read_csv(input[0])
         ds = pickle.load(open(input[1], "rb"))
 
-        # Build model and loss
-        DEPTH = int(wildcards.D)
-        WIDTH = int(wildcards.W)
-        model = Feedforward(
-            p=ds.p, K=int(wildcards.K), D=ds.D, depth=DEPTH, width=WIDTH,
-        )
+        # setup model
+        model = Linear(ds.p, ds.D)
 
-        if config.get("cuda", True):
+        # cuda
+        if torch.cuda.is_available():
             model = model.cuda()
             ds.to("cuda")
 
@@ -209,29 +223,22 @@ rule ff_cv_size:
             ),
         )
         validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
-        tloader = DataLoader(
-            train, batch_size=dsget("feedforward/batch-size", default=128)
-        )
-        vloader = DataLoader(
-            validation, batch_size=dsget("feedforward/batch-size", default=128)
-        )
+        tloader = DataLoader(train, batch_size=dsget("linear/batch-size", default=128))
+        vloader = DataLoader(validation, batch_size=dsget("linear/batch-size", default=128))
 
-        lr = dsget("feedforward/lr", default=0.001)
+        lr = dsget("linear/lr", default=0.001)
         optimizer = Adam(model.parameters(), lr=lr)
 
-        mlflow.set_experiment("feedforward cross-validation")
+        mlflow.set_experiment(f"linear cross-validation n={wildcards.n}")
 
-        # Run optimization
         with mlflow.start_run() as run:
             mlflow.log_param("dataset", wildcards.ds)
-            mlflow.log_param("model", "feedforward")
+            mlflow.log_param("model", "linear")
             mlflow.log_param("lr", lr)
-            mlflow.log_param("depth", DEPTH)
-            mlflow.log_param("width", WIDTH)
             mlflow.log_param("cv", wildcards.cv)
             mlflow.log_param("batch-size", tloader.batch_size)
 
-            pbar = tqdm(range(dsget("feedforward/epochs", default=100)),)
+            pbar = tqdm(range(dsget("linear/epochs", default=50)),)
             best = np.inf
             for e in pbar:
 
@@ -274,14 +281,14 @@ rule ff_cv_size:
             torch.save(model.state_dict(), os.path.join(base, "model.pt"))
             mlflow.log_artifact(os.path.join(base, "model.pt"), "model")
 
-rule ff_prediction_size:
+rule lin_prediction_size:
     input:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
-        "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}-n{n,\d+}/model.pt"
+        "experiments/{ds}-{phenotype}/linear/cv{cv,\d+}-n{n}/model.pt"
     output:
-        "experiments/{ds}-{phenotype}/feedforward-K{K,\d+}-D{D,\d+}-W{W,\d+}/cv{cv,\d+}-n{n,\d+}/pred-val.csv"
-    group: "predict"
+        "experiments/{ds}-{phenotype}/linear/cv{cv,\d+}-n{n}/pred-val.csv"
+    group: "linear"
     run:
         import pickle
 
@@ -289,22 +296,15 @@ rule ff_prediction_size:
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
         
-        CUDA = dsget("feedforward/prediction/cuda", default=True)
+        CUDA = dsget("linear/prediction/cuda", default=True)
 
         # Load the dataset
         df = pd.read_csv(input[0])
         ds = pickle.load(open(input[1], "rb"))
         validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
 
-        # Build model and loss
-        DEPTH = int(wildcards.D)
-        WIDTH = int(wildcards.W)
-        model = Feedforward(
-            p=ds.p, K=int(wildcards.K), D=ds.D,
-            depth=DEPTH,
-            width=WIDTH,
-        )
-
+        # setup model
+        model = Linear(ds.p, ds.D)
         model.load_state_dict(torch.load(input[2], "cpu"))
         model.eval()
 
@@ -327,7 +327,7 @@ rule ff_prediction_size:
                     model,
                     validation,
                     cuda=CUDA,
-                    size=dsget("feedforward/prediction/size", default=1024),
-                    pbar=dsget("feedforward/prediction/pbar", default=True)
+                    size=dsget("linear/prediction/size", default=1024),
+                    pbar=dsget("linear/prediction/pbar", default=True)
                 )
             )
