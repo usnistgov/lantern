@@ -38,6 +38,7 @@ laci:
 
 covid:
   N: 125000
+  step: 10000
   label: SARS-CoV-2
   substitutions: aa_substitutions
   

@@ -12,7 +12,8 @@ rule cvr2:
         expand("experiments/{dataset}/{model}/cv{cv}/pred-val.csv", cv=range(10), model=TORCH_MODELS+["globalep"], dataset=DATASETS)
     group: "figure"
     output:
-        "figures/cvr2.png"
+        "figures/cvr2.png",
+        "figures/cvr2-errorbar.png"
     run:
         scores = None
         metric = r2_score
@@ -125,3 +126,22 @@ rule cvr2:
         )
 
         plot.save(output[0], bbox_inches="tight", verbose=False)
+
+        ncol = 3
+        plot = (
+            ggplot(scores)
+            + aes(x="factor(method)", y="metric", fill="factor(method)")
+            + stat_summary()
+            + facet_wrap("dataset", scales="free_y", ncol=ncol)
+            + theme_matplotlib()
+            + theme(
+                subplots_adjust={"wspace": 0.25},
+                figure_size=(4, 3),
+                dpi=300,
+            )
+            + guides(fill=guide_legend(title=""))
+            + scale_x_discrete(name="", labels=[])
+            + scale_y_continuous(name="$R^2$")
+        )
+
+        plot.save(output[1], bbox_inches="tight", verbose=False)

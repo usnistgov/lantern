@@ -1,9 +1,14 @@
+def datasetSampleSize(wildcards):
+    step = get(config, f"{wildcards.ds}/step", default=5000)
+    return np.arange(step, get(config, f"{wildcards.ds}/N", default=40000), step)
+
 rule sample_size:
     input:
         lantern = lambda wildcards: (
             expand(
                 "experiments/{ds}-{phenotype}/lantern/cv{cv}-n{n}/pred-val.csv",
-                n=np.arange(5000, get(config, f"{wildcards.ds}/N", default=40000), 5000),
+                # n=np.arange(5000, get(config, f"{wildcards.ds}/N", default=40000), 5000),
+                n=datasetSampleSize(wildcards),
                 cv=range(10),
                 allow_missing=True,
             )
@@ -11,7 +16,8 @@ rule sample_size:
         feedforward = lambda wildcards: (
             expand(
                 "experiments/{ds}-{phenotype}/feedforward-K8-D1-W32/cv{cv}-n{n}/pred-val.csv",
-                n=np.arange(5000, get(config, f"{wildcards.ds}/N", default=40000), 5000),
+                # n=np.arange(5000, get(config, f"{wildcards.ds}/N", default=40000), 5000),
+                n=datasetSampleSize(wildcards),
                 cv=range(10),
                 allow_missing=True,
             )
@@ -19,7 +25,8 @@ rule sample_size:
         linear = lambda wildcards: (
             expand(
                 "experiments/{ds}-{phenotype}/linear/cv{cv}-n{n}/pred-val.csv",
-                n=np.arange(5000, get(config, f"{wildcards.ds}/N", default=40000), 5000),
+                # n=np.arange(5000, get(config, f"{wildcards.ds}/N", default=40000), 5000),
+                n=datasetSampleSize(wildcards),
                 cv=range(10),
                 allow_missing=True,
             )

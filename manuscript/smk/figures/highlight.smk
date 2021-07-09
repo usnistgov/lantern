@@ -197,6 +197,8 @@ rule gfp_surface_bfp_all:
     output:
         "figures/gfp-brightness/brightness/surface-bfp-all.png"
     run:
+        import matplotlib.patches as mpatches
+
         df, ds, model = util.load_run("gfp", "brightness", "lantern", "full", 8)
         model.eval()
         raw = "medianBrightness"
@@ -246,38 +248,66 @@ rule gfp_surface_bfp_all:
         # from wild-type
         for i in ind:
             _z = w_mu[i, :]
-            plt.arrow(
-                wt[0],
-                wt[1],
-                _z[0],
-                _z[1],
+
+            arrow = mpatches.FancyArrowPatch(
+                (0, 0),
+                (_z[0], _z[1]),
+                mutation_scale=20,
                 color="black",
                 label="+{}".format(labels[ind.index(i)]),
-                length_includes_head=True,
-                width=0.02,
-                zorder=100,
+                zorder=101,
+                shrinkA=0,
+                shrinkB=0,
             )
+            ax.add_patch(arrow)
+
+            # plt.arrow(
+            #     wt[0],
+            #     wt[1],
+            #     _z[0],
+            #     _z[1],
+            #     color="black",
+            #     label="+{}".format(labels[ind.index(i)]),
+            #     length_includes_head=True,
+            #     width=0.02,
+            #     zorder=100,
+            # )
 
 
         # substitutions
-        subs = ["SY143F", "SS63T", "SH229L",'SY37N', 'SN103T', 'SY143F', 'SI169V', 'SN196S', 'SA204V']
-        labels = ["Y145F", "S65T", "H231L",'Y39N', 'N105T', 'Y145F', 'I171V', 'N198S', 'A206V']
+        subs = ["SY143F", "SS63T", "SH229L",'SY37N', 'SN103T', 'SY143F', 'SI169V', 'SA204V', 'SN196S']
+        labels = ["Y145F", "S65T", "H231L",'Y39N', 'N105T', 'Y145F', 'I171V', 'A206V', 'N198S', ]
         ind = [ds.tokenizer.tokens.index(s) for s in subs]
 
         # from wild-type
         for i in ind:
             _z = w_mu[i, :]
-            plt.arrow(
-                wt[0],
-                wt[1],
-                _z[0],
-                _z[1],
+
+            arrow = mpatches.FancyArrowPatch(
+                (0, 0),
+                (_z[0], _z[1]),
+                mutation_scale=10,
                 color="C{}".format(ind.index(i)),
                 label="+{}".format(labels[ind.index(i)]),
-                length_includes_head=True,
-                width=0.01,
                 zorder=100,
+                shrinkA=1,
+                shrinkB=0,
             )
+            ax.add_patch(arrow)
+
+            # plt.arrow(
+            #     wt[0],
+            #     wt[1],
+            #     _z[0],
+            #     _z[1],
+            #     color="C{}".format(ind.index(i)),
+            #     label="+{}".format(labels[ind.index(i)]),
+            #     length_includes_head=True,
+            #     width=0.01,
+            #     zorder=100,
+            # )
+
+        # plt.scatter(0, 0, c="r", s=10, zorder=200)
 
         plt.legend(
             bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
@@ -297,6 +327,7 @@ rule gfp_surface_bfp_all:
         #     loc="upper left",
         #     borderaxespad=0.02,
         # )
+        #ax.set_aspect(1.0)
 
         plt.savefig(output[0], bbox_inches="tight")
 
@@ -676,7 +707,7 @@ rule covid_axes_parametric:
             span, lw2[:, 1] * std + mu, hi2[:, 1] * std + mu, color=COVID_BINDING_COLOR, alpha=0.4
         )
         #plt.xticks([])
-        plt.xlabel("projection")
+        plt.xlabel("axis coordinate")
         plt.axvline(0, c="k", ls="--")
         plt.ylabel("RBD-ACE2 $\log_{10} K_d$")
 
@@ -692,7 +723,7 @@ rule covid_axes_parametric:
         plt.fill_between(
             span, lw2[:, 0] * std + mu, hi2[:, 0] * std + mu, color=COVID_BINDING_COLOR, alpha=0.4
         )
-        plt.xlabel("projection")
+        plt.xlabel("axis coordinate")
         plt.ylabel("RBD $\Delta\log$MFI")
         plt.axvline(0, c="k", ls="--")
 

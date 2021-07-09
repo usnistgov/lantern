@@ -165,7 +165,9 @@ rule additivity:
         )
 
         fig.colorbar(im, ax=ax, **cbar_kwargs)
-        fig.axes[-1].set_title("additivity", y=1.04, loc="left", ha="left")
+        fig.axes[-1].set_title(
+            "additivity", y=1.04, loc="left", ha="left", style="italic",
+        )
 
         
         fig, norm, cmap, vrange = util.plotLandscape(

@@ -159,7 +159,9 @@ rule robustness:
 
         fig.colorbar(im, ax=ax, **cbar_kwargs)
         if cbar_title is not None:
-            fig.axes[-1].set_title("robustness", y=1.04, loc="left", ha="left")
+            fig.axes[-1].set_title(
+                "robustness", y=1.04, loc="left", ha="left", style="italic",
+            )
 
         fig, norm, cmap, vrange = util.plotLandscape(
             z,
