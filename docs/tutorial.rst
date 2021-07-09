@@ -154,34 +154,5 @@ Downstream Analysis
 
 Examples of downstream analysis of trained models can be seen in the :ref:`Examples<examples>`.
 
-.. _tokenizer:
-
-Controlling the mutation string Tokenizer
-=========================================
-
-Each dataset relies on a :class:`~lantern.dataset.tokenizer.Tokenizer`
-to convert raw mutational data into a one-hot encoded tensor for each
-variant. If this is not provided when creating the
-:class:`dataset<lantern.dataset.dataset.\_Base>`, it is automatically
-constructed from the available data. Usually this is what you want,
-because LANTERN will automatically determine all of the mutations
-present in the provided dataset. But, if additional mutations will be
-incorporated later (e.g. if all possible mutations to be considered
-are not in the provided dataset), then this tokenizer should be
-provided directly. See the
-:meth:`~lantern.dataset.tokenizer.Tokenizer.fromVariants` builder
-method for more details.
-
-Mutational regular expression
------------------------------
-
-The built-in tokenizer takes a regular expression
-(:attr:`~lantern.dataset.tokenizer.Tokenizer.regex`) that can be used
-to control the ordering of tokens. Specifically, if the regex contains
-a named group (e.g. a group with the syntax `"(?P<name>...)"`, see
-:py:mod:`re`) providing information on the site of the mutation
-(`"(P<site>\d+)"`) and the mutation (`"(P<mut>[a-zA-Z*])"`), then
-LANTERN will sort tokens by (1) the site position and (2) their
-mutation.
 
 
