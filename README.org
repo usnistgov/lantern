@@ -3,7 +3,11 @@
 *LANTERN is currently in alpha and the primary interface is subject to change*
 
 * Documentation
-  The official documentation with usage is available at: [[https://lantern-gpl.readthedocs.io/en/latest/index.html][https://lantern-gpl.readthedocs.io]]
+  The official documentation with usage is available at:
+  [[https://lantern-gpl.readthedocs.io/en/latest/index.html][https://lantern-gpl.readthedocs.io]]. Documentation covers
+  instructions for running ~lantern~ on GPL data, including a
+  demonstration on an example dataset. On a typical desktop, examples
+  should run in under ten minutes.
   
 * System Requirements
 
@@ -25,6 +29,7 @@
    - ~numpy~
 
 * Installation guide
+  Installation time for ~lantern~ is typically less than one minute.
 
 ** Install from github
    ~LANTERN~ currently must be installed from this repository directly,
@@ -41,5 +46,9 @@
    In either case, it is recommended to install inside a [[https://docs.python.org/3/tutorial/venv.html][virtual environment]].
 
    
+* Manuscript reproduction
+  Source code to reproduce the analysis of the LANTERN manuscript are
+  available at [[https://github.com/usnistgov/lantern/tree/master/manuscript][github.com/usnistgov/lantern/tree/master/manuscript]].
+  
 * License
   This project is covered under the *NIST Software License*
