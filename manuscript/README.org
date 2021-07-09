@@ -1,4 +1,4 @@
-#+TITLE: Analysis from manuscript "<insert final title here>"
+#+TITLE: Analysis from manuscript "nterpretable modeling of genotype-phenotype752landscapes with state-of-the-art predictive power"
 #+AUTHOR: Peter D. Tonner (NIST)
 
 * Setup
