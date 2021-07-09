@@ -1,6 +1,6 @@
 #+TITLE: LANTERN: an interpretable genotype-phenotype landscape model
 
-*LANTERN is currently in alpha and the primary interface is subject to change*
+*DISCLAIMER:* LANTERN is currently in alpha and the primary interface is subject to change
 
 * Documentation
   The official documentation with usage is available at:
