@@ -2,18 +2,44 @@
 
 *LANTERN is currently in alpha and the primary interface is subject to change*
 
-Documentation: [[https://lantern-gpl.readthedocs.io/en/latest/index.html][https://lantern-gpl.readthedocs.io]] 
+* Documentation
+  The official documentation with usage is available at: [[https://lantern-gpl.readthedocs.io/en/latest/index.html][https://lantern-gpl.readthedocs.io]]
+  
+* System Requirements
 
-* Install
-  ~LANTERN~ currently must be installed from this repository directly,
-  either through pip:
-  #+begin_src bash
-    python -m pip install git+https://github.com/usnistgov/lantern.git
-  #+end_src
-  of by cloning this repository:
-  #+begin_src bash
-    git clone https://github.com/usnistgov/lantern.git
-    cd lantern
-    python setup.py install
-  #+end_src
-  In either case, it is recommended to install inside a [[https://docs.python.org/3/tutorial/venv.html][virtual environment]].
+** Hardware requirements
+   ~lantern~ requires only a standard computer with enough RAM to
+   support the in-memory operations. Runtime of model training on
+   large-scale GPL datasets ($n \geq 10,000$) will benefit from GPU
+   hardware but is not strictly necessary.
+
+** Software requirements
+   This package is supported for macOS and Linux. The package has been tested on the following systems:
+   - macOS: Catalina (10.15)
+   - Linux: Ubuntu 18.04
+
+** Python Dependencies
+   ~lantern~ depends primarily on ~pytorch~ and ~gpytorch~, as well as
+   the components of the Python scientific stack:
+   - ~pandas~
+   - ~numpy~
+
+* Installation guide
+
+** Install from github
+   ~LANTERN~ currently must be installed from this repository directly,
+   either through pip:
+   #+begin_src bash
+     python -m pip install git+https://github.com/usnistgov/lantern.git
+   #+end_src
+   of by cloning this repository:
+   #+begin_src bash
+     git clone https://github.com/usnistgov/lantern.git
+     cd lantern
+     python setup.py install
+   #+end_src
+   In either case, it is recommended to install inside a [[https://docs.python.org/3/tutorial/venv.html][virtual environment]].
+
+   
+* License
+  This project is covered under the *NIST Software License*
