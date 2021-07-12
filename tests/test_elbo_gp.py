@@ -1,106 +1,104 @@
 import torch
-from gpytorch.likelihoods import GaussianLikelihood
+from torch import nn
+from torch.distributions import Gamma
+from torch.optim import Adam
 
-from lantern.model.surface import Phenotype
 from lantern.loss import ELBO_GP
-from lantern.loss.elbo_gp import _MultitaskGaussianLikelihood
+from lantern.model import Model
+from lantern.model.basis import VariationalBasis
+from lantern.model.surface import Phenotype
+from lantern.model.likelihood import (
+    GaussianLikelihood,
+    MultitaskGaussianLikelihood,
+)
 
 
 def test_factory():
 
-    surf = Phenotype.build(1, K=5, Ni=100)
-    elbo = ELBO_GP.fromGP(surf, 1000)
+    p = 10
+    K = 3
+    vb = VariationalBasis(
+        nn.Parameter(torch.randn(p, K)),
+        nn.Parameter(torch.randn(p, K) - 3),
+        nn.Parameter(torch.randn(K)),
+        nn.Parameter(torch.randn(K)),
+        Gamma(0.001, 0.001),
+    )
+
+    D = 1
+    m = Model(vb, Phenotype.build(D, K, Ni=100), GaussianLikelihood())
+    elbo = ELBO_GP.fromModel(m, 1000)
 
     assert type(elbo.mll.likelihood) == GaussianLikelihood
 
-    surf = Phenotype.build(2, K=5, Ni=100)
-    elbo = ELBO_GP.fromGP(surf, 1000)
+    D = 2
+    m = Model(vb, Phenotype.build(D, K, Ni=100), MultitaskGaussianLikelihood(D))
+    elbo = ELBO_GP.fromModel(m, 1000)
 
-    assert type(elbo.mll.likelihood) == _MultitaskGaussianLikelihood
+    assert type(elbo.mll.likelihood) == MultitaskGaussianLikelihood
 
-    from torch.optim import Adam
-
+    # test parameter building
     Adam(elbo.parameters())
 
 
 def test_sigma_hoc_grad():
 
     # one-dim with noise
-    surf = Phenotype.build(1, 5, Ni=100)
-    elbo = ELBO_GP.fromGP(surf, 1000, sigma_hoc=True)
+    p = 10
+    K = 3
+    vb = VariationalBasis(
+        nn.Parameter(torch.randn(p, K)),
+        nn.Parameter(torch.randn(p, K) - 3),
+        nn.Parameter(torch.randn(K)),
+        nn.Parameter(torch.randn(K)),
+        Gamma(0.001, 0.001),
+    )
 
-    yhat = surf(torch.randn(100, 5))
-    loss = elbo(yhat, torch.randn(100,), noise=torch.randn(100, 1).exp())
+    D = 1
+    m = Model(vb, Phenotype.build(D, K, Ni=100), GaussianLikelihood())
+    elbo = ELBO_GP.fromModel(m, 1000)
+
+    yhat = m.surface(torch.randn(100, K))
+    loss = elbo(yhat, torch.randn(100,), noise=torch.randn(100).exp())
     total = sum(loss.values())
 
-    assert elbo.raw_sigma_hoc.grad is None
+    assert m.likelihood.raw_noise.grad is None
     total.backward()
-    assert elbo.raw_sigma_hoc.grad is not None
+    assert m.likelihood.raw_noise.grad is not None
 
     # one-dim without noise
-    surf = Phenotype.build(1, 5, Ni=100)
-    elbo = ELBO_GP.fromGP(surf, 1000, sigma_hoc=True)
+    m = Model(vb, Phenotype.build(D, K, Ni=100), GaussianLikelihood())
+    elbo = ELBO_GP.fromModel(m, 1000)
 
-    yhat = surf(torch.randn(100, 5))
+    yhat = m.surface(torch.randn(100, K))
     loss = elbo(yhat, torch.randn(100,))
     total = sum(loss.values())
 
-    assert elbo.raw_sigma_hoc.grad is None
+    assert m.likelihood.raw_noise.grad is None
     total.backward()
-    assert elbo.raw_sigma_hoc.grad is None
+    assert m.likelihood.raw_noise.grad is not None
 
     # multi-dim with noise
-    surf = Phenotype.build(3, 5, Ni=100)
-    elbo = ELBO_GP.fromGP(surf, 1000, sigma_hoc=True)
+    D = 3
+    m = Model(vb, Phenotype.build(D, K, Ni=100), MultitaskGaussianLikelihood(3))
+    elbo = ELBO_GP.fromModel(m, 1000)
 
-    yhat = surf(torch.randn(100, 5))
-    loss = elbo(yhat, torch.randn(100, 3), noise=torch.randn(100, 3).exp())
+    yhat = m.surface(torch.randn(100, K))
+    loss = elbo(yhat, torch.randn(100, D), noise=torch.randn(100, D).exp())
     total = sum(loss.values())
 
-    assert elbo.raw_sigma_hoc.grad is None
+    assert m.likelihood.raw_task_noises.grad is None
     total.backward()
-    assert elbo.raw_sigma_hoc.grad is not None
+    assert m.likelihood.raw_task_noises.grad is not None
 
     # multi-dim without noise
-    surf = Phenotype.build(3, 5, Ni=100)
-    elbo = ELBO_GP.fromGP(surf, 1000, sigma_hoc=True)
+    m = Model(vb, Phenotype.build(D, K, Ni=100), MultitaskGaussianLikelihood(3))
+    elbo = ELBO_GP.fromModel(m, 1000)
 
-    yhat = surf(torch.randn(100, 5))
-    loss = elbo(yhat, torch.randn(100, 3),)
+    yhat = m.surface(torch.randn(100, K))
+    loss = elbo(yhat, torch.randn(100, D),)
     total = sum(loss.values())
 
-    assert elbo.raw_sigma_hoc.grad is None
+    assert m.likelihood.raw_task_noises.grad is None
     total.backward()
-    assert elbo.raw_sigma_hoc.grad is None
-
-
-def test_no_sigma_hoc_grad():
-
-    # one-dim
-    surf = Phenotype.build(1, 5, Ni=100)
-    elbo = ELBO_GP.fromGP(surf, 1000, sigma_hoc=False)
-
-    yhat = surf(torch.randn(100, 5))
-    loss = elbo(yhat, torch.randn(100,), noise=torch.randn(100, 1).exp())
-    total = sum(loss.values())
-
-    assert surf.variational_strategy.inducing_points.grad is None
-    total.backward()
-    assert surf.variational_strategy.inducing_points.grad is not None
-
-    # multi-dim
-    surf = Phenotype.build(3, 5, Ni=100)
-    elbo = ELBO_GP.fromGP(surf, 1000, sigma_hoc=True)
-
-    yhat = surf(torch.randn(100, 5))
-    loss = elbo(yhat, torch.randn(100, 3), noise=torch.randn(100, 3).exp())
-    total = sum(loss.values())
-
-    assert (
-        surf.variational_strategy.base_variational_strategy.inducing_points.grad is None
-    )
-    total.backward()
-    assert (
-        surf.variational_strategy.base_variational_strategy.inducing_points.grad
-        is not None
-    )
+    assert m.likelihood.raw_task_noises.grad is not None

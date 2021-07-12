@@ -70,13 +70,6 @@ class Phenotype(ApproximateGP, Module):
         device = strat.inducing_points.device
         strat.inducing_points.data[:] = torch.from_numpy(induc).to(device)
 
-    def loss(self, *args, **kwargs):
-        """The ELBO of the variational GP approximation.
-        """
-        from lantern.loss import ELBO_GP
-
-        return ELBO_GP.fromGP(self, *args, **kwargs)
-
     @classmethod
     def fromDataset(cls, ds, *args, **kwargs):
         """Build a phenotype surface matching a dataset
