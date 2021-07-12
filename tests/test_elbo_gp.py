@@ -87,9 +87,9 @@ def test_sigma_hoc_grad():
     loss = elbo(yhat, torch.randn(100, D), noise=torch.randn(100, D).exp())
     total = sum(loss.values())
 
-    assert m.likelihood.raw_noise.grad is None
+    assert m.likelihood.raw_task_noises.grad is None
     total.backward()
-    assert m.likelihood.raw_noise.grad is not None
+    assert m.likelihood.raw_task_noises.grad is not None
 
     # multi-dim without noise
     m = Model(vb, Phenotype.build(D, K, Ni=100), MultitaskGaussianLikelihood(3))
@@ -99,6 +99,6 @@ def test_sigma_hoc_grad():
     loss = elbo(yhat, torch.randn(100, D),)
     total = sum(loss.values())
 
-    assert m.likelihood.raw_noise.grad is None
+    assert m.likelihood.raw_task_noises.grad is None
     total.backward()
-    assert m.likelihood.raw_noise.grad is not None
+    assert m.likelihood.raw_task_noises.grad is not None

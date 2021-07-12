@@ -10,14 +10,6 @@ from gpytorch.mlls import VariationalELBO
 
 from lantern.loss import Term
 
-# hack to allow non-fixed noise for each observation
-class _MultitaskGaussianLikelihood(MultitaskGaussianLikelihood):
-    def _shaped_noise_covar(self, base_shape, noise=None):
-        noise_covar = super()._shaped_noise_covar(base_shape)
-        if noise is not None:
-            return noise_covar.add_diag(noise)
-        return noise_covar
-
 
 @attr.s(eq=False)
 class ELBO_GP(Term):
