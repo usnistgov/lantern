@@ -20,7 +20,11 @@ class ELBO_GP(Term):
     mll = attr.ib(repr=False)
 
     def loss(self, yhat, y, noise=None, *args, **kwargs) -> dict:
-        ll, kl, log_prior = self.mll(yhat, y.reshape(*yhat.mean.shape), noise=noise)
+        ll, kl, log_prior = self.mll(
+            yhat,
+            y.reshape(*yhat.mean.shape),
+            noise=noise.reshape(*yhat.mean.shape) if noise is not None else None,
+        )
 
         return {
             "neg-loglikelihood": -ll,
