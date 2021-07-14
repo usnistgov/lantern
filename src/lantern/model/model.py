@@ -18,9 +18,9 @@ class Model(Module):
 
     @surface.validator
     def _surface_validator(self, attribute, value):
-        if value.K != self.basis.K:
+        if value.Kbasis != self.basis.K:
             raise ValueError(
-                f"Basis ({self.basis.K}) and surface ({value.K}) do not have the same dimensionality."
+                f"Basis ({self.basis.K}) and surface ({value.Kbasis}) do not have the same dimensionality."
             )
 
     def forward(self, X):

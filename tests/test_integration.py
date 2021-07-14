@@ -5,6 +5,7 @@ from lantern.dataset import Dataset
 from lantern.model import Model
 from lantern.model.basis import VariationalBasis
 from lantern.model.surface import Phenotype
+from lantern.model.likelihood import GaussianLikelihood
 
 
 def test_quickstart():
@@ -22,20 +23,22 @@ def test_quickstart():
     # build a LANTERN model based on the dataset, using an upper-bound
     # of K latent dimensions
     model = Model(
-        VariationalBasis.fromDataset(ds, 3), Phenotype.fromDataset(ds, 3, Ni=50)
+        VariationalBasis.fromDataset(ds, 3),
+        Phenotype.fromDataset(ds, 3, Ni=50),
+        GaussianLikelihood(),
     )
 
     loss = model.loss(N=len(ds))
     X, y = ds[: len(ds)]
 
-    optimizer = Adam(loss.parameters(), lr=0.01)
+    optimizer = Adam(loss.parameters(), lr=0.1)
 
     # get initial loss
     yhat = model(X)
     lss = loss(yhat, y)
     baseline = sum(lss.values())
 
-    for i in range(10):
+    for i in range(20):
         optimizer.zero_grad()
         yhat = model(X)
         lss = loss(yhat, y)
@@ -43,5 +46,5 @@ def test_quickstart():
         total.backward()
         optimizer.step()
 
-    # loss should have decreased
+    # loss should have decreased, occasionally fails stochastically
     assert total < baseline

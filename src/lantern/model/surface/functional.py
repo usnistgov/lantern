@@ -13,21 +13,9 @@ from lantern.model.surface import Surface
 
 
 @attr.s(cmp=False)
-class Phenotype(ApproximateGP, Surface):
-    """A phenotype surface, learned with an approximate GP.
-    
-    :param D: The phenotype dimension
-    :type D: int
-    :param K: The latent effect dimension
-    :type K: int
-    :param mean: The mean function of the GP
-    :type mean: gpytorch.means.Mean
-    :param kernel: The GP kernel function
-    :type kernel: gpytorch.kernels.Kernel
-    :param variational_strategy: The strategy for variational inference
-    :type variational_strategy: gpytorch.variational.VariationalStrategy
-    """
+class Functional(ApproximateGP, Surface):
 
+    Z: torch.tensor = attr.ib()
     D: int = attr.ib()
     K: int = attr.ib()
 
@@ -49,41 +37,67 @@ class Phenotype(ApproximateGP, Surface):
             )
 
     @property
+    def M(self):
+        """Number of covariates
+        """
+        return self.Z.shape[1]
+
+    @property
+    def n(self):
+        """Number of function observations
+        """
+        return self.Z.shape[0]
+
+    @property
     def Kbasis(self):
-        return self.K
+        return self.K - self.M
+
+    @staticmethod
+    def _expand(*tensors):
+        """Make a cartesian product of tensors.
+        """
+
+        # make cartesian product of tensor indices. each row of prod
+        # stores the row index of each tensor to take for a given
+        # observation. each column of prod is for one of the input tensors
+        ind = [torch.arange(t.shape[0]) for t in tensors]
+        prod = torch.cartesian_prod(*ind)
+
+        # build cartesian product tensor of individual tensor elements
+        offset = 0
+        ret = torch.zeros(prod.shape[0], sum([t.shape[1] for t in tensors]))
+        if tensors[0].is_cuda:
+            ret = ret.cuda()
+        for i, t in enumerate(tensors):
+            ret[:, offset : offset + t.shape[1]] = t[prod[:, i], :]
+            offset += t.shape[1]
+
+        return ret
+
+    def __call__(self, z):
+        """Override the gpytorch call, creating the right size and shape tensor from the input
+        """
+        z = self._expand(z, self.Z)
+        return super(Functional, self).__call__(z)
 
     def forward(self, z):
-        """The forward prediction of the phenotype for a position in latent phenotype space.
+        """The forward prediction of the functional phenotype for a position in latent phenotype space.
         """
         mean_x = self.mean(z)
         covar_x = self.kernel(z)
         return MultivariateNormal(mean_x, covar_x)
 
-    def _get_induc(self):
-        strat = self.variational_strategy
-        if isinstance(strat, IndependentMultitaskVariationalStrategy):
-            strat = strat.base_variational_strategy
-
-        return strat.inducing_points.detach().cpu().numpy()
-
-    def _set_induc(self, induc):
-        strat = self.variational_strategy
-        if isinstance(strat, IndependentMultitaskVariationalStrategy):
-            strat = strat.base_variational_strategy
-
-        device = strat.inducing_points.device
-        strat.inducing_points.data[:] = torch.from_numpy(induc).to(device)
-
     @classmethod
-    def fromDataset(cls, ds, *args, **kwargs):
-        """Build a phenotype surface matching a dataset
+    def fromDataset(cls, Z, ds, *args, **kwargs):
+        """Build a functional phenotype surface matching a dataset
         """
 
-        return cls.build(ds.D, *args, **kwargs)
+        return cls.build(Z, ds.D, *args, **kwargs)
 
     @classmethod
     def build(
         cls,
+        Z,
         D,
         K,
         Ni=800,
@@ -95,8 +109,10 @@ class Phenotype(ApproximateGP, Surface):
         *args,
         **kwargs
     ):
-        """Build a phenotype surface object.
+        """Build a functional phenotype surface object.
 
+        :param Z: the fixed functional values of the phenotype
+        :type Z: torch.tensor
         :param D: Number of dimensions of the (output) phenotype
         :type D: int
         :param K: Number of latent dimesions
@@ -114,10 +130,14 @@ class Phenotype(ApproximateGP, Surface):
         :param learn_inducing_locations: Whether to learn location of inducing points
         :type learn_inducing_locations: bool, optional
         """
+
+        # number of fixed dims plus provided K
+        Ktotal = Z.shape[1] + K
+
         if D > 1:
-            shape = (D, Ni, K)
+            shape = (D, Ni, Ktotal)
         else:
-            shape = (Ni, K)
+            shape = (Ni, Ktotal)
 
         inducing_points = -inducScale + 2 * inducScale * torch.rand(*shape)
 
@@ -145,9 +165,9 @@ class Phenotype(ApproximateGP, Surface):
         if kernel is None:
             # rq component
             if D > 1:
-                kernel = RQKernel(ard_num_dims=K, batch_shape=torch.Size([D]))
+                kernel = RQKernel(ard_num_dims=Ktotal, batch_shape=torch.Size([D]))
             else:
-                kernel = RQKernel(ard_num_dims=K)
+                kernel = RQKernel(ard_num_dims=Ktotal)
             if kernel.has_lengthscale:
                 kernel.raw_lengthscale.requires_grad = False
 
@@ -157,4 +177,4 @@ class Phenotype(ApproximateGP, Surface):
             else:
                 kernel = ScaleKernel(kernel)
 
-        return cls(D, K, mean, kernel, strat, *args, **kwargs)
+        return cls(Z, D, Ktotal, mean, kernel, strat, *args, **kwargs)

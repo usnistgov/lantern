@@ -2,4 +2,8 @@ from lantern.module import Module
 
 
 class Surface(Module):
-    pass
+    @property
+    def Kbasis(self):
+        """The number of dimensions provided by the basis
+        """
+        raise NotImplementedError()
