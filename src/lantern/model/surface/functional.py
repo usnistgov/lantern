@@ -165,11 +165,23 @@ class Functional(ApproximateGP, Surface):
         if kernel is None:
             # rq component
             if D > 1:
-                kernel = RQKernel(ard_num_dims=Ktotal, batch_shape=torch.Size([D]))
+                k1 = RQKernel(
+                    ard_num_dims=K, active_dims=range(K), batch_shape=torch.Size([D])
+                )
+                k2 = RQKernel(
+                    ard_num_dims=Z.shape[1],
+                    active_dims=range(K, Ktotal),
+                    batch_shape=torch.Size([D]),
+                )
             else:
-                kernel = RQKernel(ard_num_dims=Ktotal)
-            if kernel.has_lengthscale:
-                kernel.raw_lengthscale.requires_grad = False
+                k1 = RQKernel(ard_num_dims=K, active_dims=range(K))
+                k2 = RQKernel(ard_num_dims=Z.shape[1], active_dims=range(K, Ktotal))
+
+            # no lengthscale for basis dimensions
+            if k1.has_lengthscale:
+                k1.raw_lengthscale.requires_grad = False
+
+            kernel = k1 + k2
 
             # scale component
             if D > 1:
