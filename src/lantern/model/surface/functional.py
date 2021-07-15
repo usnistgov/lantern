@@ -74,10 +74,12 @@ class Functional(ApproximateGP, Surface):
 
         return ret
 
-    def __call__(self, z):
+    def __call__(self, z, expand=True):
         """Override the gpytorch call, creating the right size and shape tensor from the input
         """
-        z = self._expand(z, self.Z)
+        if expand:
+            z = self._expand(z, self.Z)
+
         return super(Functional, self).__call__(z)
 
     def forward(self, z):
@@ -92,7 +94,7 @@ class Functional(ApproximateGP, Surface):
         """Build a functional phenotype surface matching a dataset
         """
 
-        return cls.build(Z, ds.D, *args, **kwargs)
+        return cls.build(Z, 1, *args, **kwargs)
 
     @classmethod
     def build(
