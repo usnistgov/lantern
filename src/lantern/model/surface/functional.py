@@ -183,7 +183,7 @@ class Functional(ApproximateGP, Surface):
             if k1.has_lengthscale:
                 k1.raw_lengthscale.requires_grad = False
 
-            kernel = k1 + k2
+            kernel = k1 * k2
 
             # scale component
             if D > 1:
