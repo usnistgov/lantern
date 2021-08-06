@@ -58,20 +58,11 @@ class _Base(TensorDataset):
             self.tokenizer = Tokenizer.fromVariants(substitutions)
 
         # build tensors
-        N = len(self.df)
+        X = self.tokenizer.tokenize(*substitutions.tolist())
+        y = torch.from_numpy(phenotypes.values).float()
 
-        X = torch.zeros(N, self.tokenizer.p)
-        y = torch.zeros(N, len(self.phenotypes))
         if errors is not None:
-            n = torch.zeros(N, len(self.errors))
-
-        for i in range(N):
-
-            X[i, :] = self.tokenizer.tokenize(substitutions.iloc[i])
-            y[i, :] = torch.from_numpy(phenotypes.iloc[i, :].values)
-
-            if errors is not None:
-                n[i, :] = torch.from_numpy(errors.iloc[i, :].values)
+            n = torch.from_numpy(errors.values).float()
 
         tensors = [X, y]
         if errors is not None:
