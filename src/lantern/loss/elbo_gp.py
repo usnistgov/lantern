@@ -1,11 +1,5 @@
 import attr
 import torch
-from torch.nn import functional as F
-from torch.distributions.kl import kl_divergence
-from torch.distributions import Gamma, Normal
-from torch import nn
-from gpytorch.likelihoods import GaussianLikelihood
-from gpytorch.likelihoods import MultitaskGaussianLikelihood
 from gpytorch.mlls import VariationalELBO
 
 from lantern.loss import Term
@@ -20,11 +14,27 @@ class ELBO_GP(Term):
     mll = attr.ib(repr=False)
 
     def loss(self, yhat, y, noise=None, *args, **kwargs) -> dict:
-        ll, kl, log_prior = self.mll(
-            yhat,
-            y.reshape(*yhat.mean.shape),
-            noise=noise.reshape(*yhat.mean.shape) if noise is not None else None,
-        )
+        shape = yhat.mean.shape
+        y = y.reshape(*shape)
+
+        if noise is not None:
+            noise = noise.reshape(*shape)
+
+        if y.isnan().any():
+            # in order to support D>1, need to make selection with mask on yhat work
+            if yhat.mean.ndim > 1:
+                raise ValueError("No support for masking with D>1")
+
+            mask = ~y.isnan()
+            imask = torch.where(mask)
+
+            y = y[mask]
+            yhat = yhat.__getitem__(imask)
+
+            if noise is not None:
+                noise = noise[mask]
+
+        ll, kl, log_prior = self.mll(yhat, y, noise=noise, **kwargs)
 
         return {
             "neg-loglikelihood": -ll,
