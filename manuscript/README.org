@@ -5,7 +5,7 @@
   Along with the ~lantern~ package, analysis for the manuscript
   requires additional packages to be installed:
   #+begin_src bash
-    pip install lantern snakemake plotnine dms_variants dpath tqdm mlflow dms_variants
+    pip install lantern snakemake plotnine dms_variants dpath tqdm mlflow dms_variants tables
   #+end_src
   
 * Analysis

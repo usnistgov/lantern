@@ -1,6 +1,5 @@
 import util
 import src
-from src import allostery
 
 from glob import glob
 import matplotlib.pyplot as plt
@@ -37,10 +36,8 @@ include: "smk/lantern.smk"
 include: "smk/feedforward.smk"
 include: "smk/linear.smk"
 include: "smk/globalep.smk"
-include: "smk/allostery.smk"
 
 include: "smk/figures/cvr2.smk"
-include: "smk/figures/calibration.smk"
 include: "smk/figures/surface.smk"
 include: "smk/figures/sample-size.smk"
 include: "smk/figures/anglehist.smk"
