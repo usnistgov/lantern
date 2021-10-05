@@ -184,7 +184,6 @@ rule figures:
         "figures/covid-joint/parametric.png",
         "figures/covid-joint/variants.png",
         "figures/covid-joint/variants_project.png",
-    group: "figure"
     shell:
         "tar -czf figures.tar.gz figures/*"
 
@@ -196,6 +195,10 @@ rule help:
         for rule in workflow.rules:
             print(rule.name)
             print(rule.docstring)
+
+rule environment:
+    shell:
+        """conda env export -n lantern > environment.yml"""
 
 # rule a:
 #     input: expand("tmp/in/{a}.txt", a=range(10))
