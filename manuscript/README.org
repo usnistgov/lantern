@@ -11,9 +11,21 @@
   #+end_src
   
 * Analysis
-  A high-level view of available pipeline components is available
-  through:
-  #+begin_src bash
-    snakemake -l
-  #+end_src
+  Everything in the analysis is managed with [[https://snakemake.readthedocs.io/en/stable/index.html][snakemake]], which greatly
+  simplifies re-creating the workflow. Below outlines the steps
+  required to reproduce the full analysis.
+ 
+** Overview 
+    A high-level view of available pipeline components is available
+    through:
+    #+begin_src bash
+      snakemake -l
+    #+end_src
   
+
+    
+** Data setup
+   Download and pre-process datasets with
+   #+begin_src sh
+     snakemake data -j1
+   #+end_src
