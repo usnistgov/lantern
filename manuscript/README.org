@@ -10,25 +10,6 @@
     conda env create -f environment.yml
   #+end_src
   
-  This code is organized to run with a specific version of ~lantern~,
-  and will not be compatible with future versions. To install the
-  correct version run (preferably in a virtual environment):
-  #+begin_src bash
-    pip install git+git://github.com/usnistgov/lantern.git@dfe6d0190dd17330147abd139208a51f89794be0
-  #+end_src
-
-  Finally, one additional dependency (for training single-dimension
-  global epistasis models), must be installed through pip:
-  #+begin_src bash
-    pip install dms_variants
-  #+end_src
-  
-  Along with the ~lantern~ package, analysis for the manuscript
-  requires additional packages to be installed:
-  #+begin_src bash
-    pip install lantern snakemake dms_variants plotnine dpath tqdm mlflow
-  #+end_src
-  
 * Analysis
   A high-level view of available pipeline components is available
   through:
