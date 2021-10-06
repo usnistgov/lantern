@@ -51,6 +51,7 @@ include: "smk/figures/additivity.smk"
 include: "smk/figures/highlight.smk"
 include: "smk/figures/dimensions.smk"
 include: "smk/figures/diffops.smk"
+include: "smk/figures/sir.smk"
 
 rule data:
     input:

@@ -12,4 +12,5 @@ dependencies:
     - dms-variants==0.8.6
     - plotnine==0.8.0
     - tables==3.6.1
+    - sliced==0.7.0
     - "git+git://github.com/usnistgov/lantern.git@dfe6d0190dd17330147abd139208a51f89794be0"
