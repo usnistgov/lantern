@@ -249,7 +249,7 @@ def plotLandscape(
         norm = mpl.colors.Normalize(vmin=vrange[0], vmax=vrange[1])
 
     sm = plt.cm.ScalarMappable(norm=norm, cmap=cs.cmap)
-    sm.set_array([])
+    sm.set_array(np.array([]))
 
     if colorbar:
         cbar = fig.colorbar(sm, ax=ax, **cbar_kwargs)
