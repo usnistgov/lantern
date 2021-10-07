@@ -6,6 +6,8 @@ rule sir_effects:
         "experiments/{ds}-{phenotype}/lantern/full/model.pt"
     output:
         "figures/{ds}-{phenotype}/{target}/sir-effects.png"
+    resources:
+        mem = "32000M"
     run:
         import pandas as pd
         import numpy as np                                    
@@ -38,7 +40,7 @@ rule sir_effects:
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", K)
         W = model.basis.W_mu[:, model.basis.order].detach().numpy()
         X, y = ds[:len(ds)][:2]
-        y = y[:, p]
+        y = y[:, p].numpy()
 
         # setup SIR
         sir = SlicedInverseRegression(n_directions=8, n_slices=30)
@@ -96,6 +98,8 @@ rule sir_dims:
         "experiments/{ds}-{phenotype}/lantern/full/model.pt"
     output:
         "figures/{ds}-{phenotype}/{target}/sir-dims.png"
+    resources:
+        mem = "32000M"
     run:
         import pandas as pd
         import numpy as np                                    
@@ -128,7 +132,7 @@ rule sir_dims:
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", K)
         W = model.basis.W_mu[:, model.basis.order].detach().numpy()
         X, y = ds[:len(ds)][:2]
-        y = y[:, p]
+        y = y[:, p].numpy()
 
         phenotype_name = get(
             config,
@@ -148,7 +152,7 @@ rule sir_dims:
         X_sir = sir.transform(X)
 
         if raw is not None:
-            y = y * data[raw].std() + data[raw].mean()
+            y = y * df[raw].std() + df[raw].mean()
 
         plt.figure(figsize=(8, 6))
         for d in range(8):
@@ -170,6 +174,8 @@ rule sir_variance:
         "experiments/{ds}-{phenotype}/lantern/full/model.pt"
     output:
         "figures/{ds}-{phenotype}/{target}/sir-variance.png"
+    resources:
+        mem = "32000M"
     run:
         import pandas as pd
         import numpy as np                                    
@@ -202,7 +208,7 @@ rule sir_variance:
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", K)
         W = model.basis.W_mu[:, model.basis.order].detach().numpy()
         X, y = ds[:len(ds)][:2]
-        y = y[:, p]
+        y = y[:, p].numpy()
 
 
         # setup SIR
