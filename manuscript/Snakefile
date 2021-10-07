@@ -149,12 +149,17 @@ rule predict:
         rules.predict_torch.input,
         rules.predict_ge.input,
 
-rule figures:
+rule exp_figures:
     """
-    Generate figures for the manuscript.
+    Generate experiment figures for the manuscript.
     """
     input:
-        "figures/cvr2.png",
+        # "figures/cvr2.png",
+        # "figures/laci-joint/sample-size-ec50-norm.png",
+        # "figures/laci-joint/sample-size-ginf-norm.png",
+        # "figures/gfp-brightness/sample-size-phenotype.png",
+        # "figures/covid-joint/sample-size-func_score_norm_exp.png",
+        # "figures/covid-joint/sample-size-func_score_norm_bind.png",
         expand(
             "figures/{dstarg}/{fig}.png",
             dstarg=[
@@ -164,13 +169,8 @@ rule figures:
                 "covid-joint/bind",
                 "gfp-brightness/brightness",
             ],
-            fig=["surface", "gradient", "robustness", "laplacian", "additivity"],
+            fig=["surface", "gradient", "robustness", "laplacian", "additivity", "sir-effects", "sir-dims"],
         ),
-        "figures/laci-joint/sample-size-ec50-norm.png",
-        "figures/laci-joint/sample-size-ginf-norm.png",
-        "figures/gfp-brightness/sample-size-phenotype.png",
-        "figures/covid-joint/sample-size-func_score_norm_exp.png",
-        "figures/covid-joint/sample-size-func_score_norm_bind.png",
         expand(
             "figures/{dataset}/anglehist.png",
             dataset=["laci-joint", "covid-joint", "gfp-brightness"],
@@ -185,6 +185,30 @@ rule figures:
         "figures/covid-joint/parametric.png",
         "figures/covid-joint/variants.png",
         "figures/covid-joint/variants_project.png",
+    shell:
+        "tar -czf figures.tar.gz figures/*"
+
+rule pred_figures:
+    """
+    Generate prediction figures for the manuscript.
+    """
+    input:
+        "figures/cvr2.png",
+        "figures/laci-joint/sample-size-ec50-norm.png",
+        "figures/laci-joint/sample-size-ginf-norm.png",
+        "figures/gfp-brightness/sample-size-phenotype.png",
+        "figures/covid-joint/sample-size-func_score_norm_exp.png",
+        "figures/covid-joint/sample-size-func_score_norm_bind.png",
+    shell:
+        "tar -czf figures.tar.gz figures/*"
+
+rule figures:
+    """
+    Generate all figures for the manuscript.
+    """
+    input:
+        rules.exp_figures.input,
+        rules.pred_figures.input,
     shell:
         "tar -czf figures.tar.gz figures/*"
 
