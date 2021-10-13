@@ -113,6 +113,9 @@ rule lantern_cv:
     output:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}/model.pt",
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}/loss.pt"
+    resources:
+        gres="gpu:1",
+        partition="batch",
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -222,6 +225,9 @@ rule lantern_full:
     output:
         "experiments/{ds}-{phenotype}/lantern/full{rerun,.*}/model.pt",
         "experiments/{ds}-{phenotype}/lantern/full{rerun,.*}/loss.pt"
+    resources:
+        gres="gpu:1",
+        partition="batch",
     group: "train"
     run:
         def dsget(pth, default):
@@ -317,6 +323,9 @@ rule lantern_prediction:
     output:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}/pred-val.csv"
     group: "predict"
+    resources:
+        gres="gpu:1",
+        partition="batch",
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -372,6 +381,9 @@ rule lantern_cv_size:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}-n{n}/model.pt",
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}-n{n}/loss.pt"
     group: "train"
+    resources:
+        gres="gpu:1",
+        partition="batch",
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -439,6 +451,9 @@ rule lantern_prediction_size:
     output:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}-n{n}/pred-val.csv"
     group: "predict"
+    resources:
+        gres="gpu:1",
+        partition="batch",
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
