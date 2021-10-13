@@ -9,6 +9,7 @@ rule gfp_surface_focus:
         "experiments/gfp-brightness/lantern/full/model.pt"
     output:
         "figures/gfp-brightness/brightness/surface-focus.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("gfp", "brightness", "lantern", "full", 8)
         model.eval()
@@ -52,6 +53,7 @@ rule gfp_surface_bfp1:
         "experiments/gfp-brightness/lantern/full/model.pt"
     output:
         "figures/gfp-brightness/brightness/surface-bfp1.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("gfp", "brightness", "lantern", "full", 8)
         model.eval()
@@ -124,6 +126,7 @@ rule gfp_surface_bfp2:
         "experiments/gfp-brightness/lantern/full/model.pt"
     output:
         "figures/gfp-brightness/brightness/surface-bfp2.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("gfp", "brightness", "lantern", "full", 8)
         model.eval()
@@ -196,6 +199,7 @@ rule gfp_surface_bfp_all:
         "experiments/gfp-brightness/lantern/full/model.pt"
     output:
         "figures/gfp-brightness/brightness/surface-bfp-all.png"
+    group: "figure"
     run:
         import matplotlib.patches as mpatches
 
@@ -343,6 +347,7 @@ rule laci_parametric:
         "experiments/laci-joint/lantern/full/model.pt"
     output:
         "figures/laci-joint/parametric.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("laci", "joint", "lantern", "full", 8)
         model.eval()
@@ -521,6 +526,7 @@ rule covid_anglehist:
         "experiments/covid-joint/lantern/full/model.pt"
     output:
         "figures/covid-joint/anglehist-highlight.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)
         model.eval()
@@ -633,6 +639,7 @@ rule covid_axes_parametric:
         "experiments/covid-joint/lantern/full/model.pt"
     output:
         "figures/covid-joint/axes-surface.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)
         model.eval()
@@ -741,6 +748,7 @@ rule covid_parametric:
         "experiments/covid-joint/lantern/full/model.pt"
     output:
         "figures/covid-joint/parametric.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)
         model.eval()
@@ -852,6 +860,7 @@ rule covid_variants:
     output:
         "figures/covid-joint/variants.png",
         "figures/covid-joint/variants_project.png"
+    group: "figure"
     run:
         from cycler import cycler
 
@@ -1085,6 +1094,7 @@ rule covid_axes_surface:
         "figures/covid-joint/axes-binding.png",
         "figures/covid-joint/axes-expression.png",
         # "figures/covid-joint/axes-expression-with-hist.png"
+    group: "figure"
     run:
 
         df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)

@@ -220,8 +220,8 @@ rule lantern_full:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
     output:
-        "experiments/{ds}-{phenotype}/lantern/full/model.pt",
-        "experiments/{ds}-{phenotype}/lantern/full/loss.pt"
+        "experiments/{ds}-{phenotype}/lantern/full{rerun,.*}/model.pt",
+        "experiments/{ds}-{phenotype}/lantern/full{rerun,.*}/loss.pt"
     group: "train"
     run:
         def dsget(pth, default):

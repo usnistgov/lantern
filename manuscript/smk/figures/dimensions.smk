@@ -7,6 +7,7 @@ rule dimensions:
         )
     output:
         "figures/dimensions.png"
+    group: "figure"
     run:
         mn = 1e-4
         mx = 1

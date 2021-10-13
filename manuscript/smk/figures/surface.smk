@@ -9,6 +9,7 @@ rule surface:
         "experiments/{ds}-{phenotype}/lantern/full/model.pt"
     output:
         "figures/{ds}-{phenotype}/{target}/surface.png"
+    group: "figure"
     run:
 
         def dsget(pth, default):

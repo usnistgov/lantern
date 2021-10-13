@@ -1,14 +1,172 @@
-rule sir_effects:
-    """Compare sliced inverse regression directions to LANTERN effects"""
+def _find_colinear(args):
+    X, i = args
+    for j in range(i):
+        # easier to find co-linear this way b/c only 0 or 1
+        if (X[:, i] == X[:, j]).all():
+            return False
+    return True
+
+rule sir_fit:
+    """Fit SIR model"""
     input:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
         "experiments/{ds}-{phenotype}/lantern/full/model.pt"
     output:
+        "figures/{ds}-{phenotype}/{target}/sir-fit.pkl"
+    resources:
+        mem = "32000M",
+        time = "8:00:00"
+    group: "figure"
+    run:
+        import pickle
+        from itertools import combinations
+        # from multiprocessing import Pool
+        
+        import pandas as pd
+        import numpy as np                                    
+        import matplotlib.pyplot as plt
+        from sliced import SlicedInverseRegression
+        from tqdm import tqdm
+
+        from lantern.dataset.tokenizer import Tokenizer
+
+        # Configuration
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+
+        K = dsget("K", 8)
+
+        def fget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(
+                config,
+                f"figures/sir/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/{pth}",
+                default=default,
+            )
+
+        p = fget(
+            "p",
+            default=0,
+        )
+
+        # setup LANTERN
+        print("data setup")
+        df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", K)
+        W = model.basis.W_mu[:, model.basis.order].detach().numpy()
+        X, y = ds[:len(ds)][:2]
+        y = y[:, p].numpy()
+
+        # find co-linear columns
+        print("find colinear")
+
+        p = X.shape[1]
+        # possible co-linear pairs
+        # pairs = dict([(i, set(range(p))) for i in range(p)])
+
+        # groups = [set(range(p))]
+
+        # # pairs = dict([(p, None) for p in combinations(range(p), 2)])
+        # pbar = tqdm(range(X.shape[0]))
+        # for n in pbar:
+
+        #     ind, = torch.where(X[n, :] == 1) # check these
+
+        #     new_groups = []
+        #     for g in groups:
+        #         subset = set([i.item() for i in ind if i.item() in g])
+        #         new_groups.append(subset)
+        #         new_groups.append(g - subset)
+
+        #         # check if this groups needs to be split
+        #         # any indices that don't match in the group need to be split
+
+        #         # new_groups.append(g)
+        #     groups = [g for g in new_groups if len(g) > 0]
+        #     pbar.set_postfix(groups=len(groups))
+
+        #     # for i in range(p):
+        #     #     if i in ind:
+        #     #         for j in list(pairs[i]): # this gets shorter over time
+        #     #             if j not in ind:
+        #     #                 pairs[i].remove(j)
+        #     #     else:
+        #     #         for j in list(pairs[i]):
+        #     #             if j in ind:
+        #     #                 pairs[i].remove(j)
+
+        #     # ind, = torch.where(X[n, :] == 1)
+        #     # keys = list(pairs.keys())
+        #     # for i, j in keys:
+        #     #     if (i in ind and j not in ind) or (i not in ind and j not in ind):
+        #     #         del pairs[(i, j)]
+        #     # pbar.set_postfix("{:,}".format(len(list(pairs.keys()))))
+
+        #     # for i in range(p):
+        #     #     if i not in ind:
+        #     #         for j in ind:
+        #     #             try:
+        #     #                 if i < j:
+        #     #                     del pairs[(i, j.item())]
+        #     #                 else:
+        #     #                     del pairs[(j.item(), i)]
+        #     #             except: # it's fine if key already deleted
+        #     #                 pass
+
+
+        # TODO: turn pairs into removed things
+
+        # with Pool(10) as pool:
+        #     ind = [
+        #         i
+        #         for i, b in enumerate(pool.map(_find_colinear, zip([X] * p, range(p))))
+        #         if b
+        #     ]
+        ind = [i for i in range(p)]
+        for i in range(p):
+            for j in range(i + 1, p):
+                # easier to find co-linear this way b/c only 0 or 1
+                if (X[:, i] == X[:, j]).all() and j in ind:
+                    ind.remove(j)
+        Xtrim = X[:, ind]
+
+        # setup SIR
+        print("train SIR")
+        sir = SlicedInverseRegression(n_directions=8, n_slices=30)
+
+        sir.fit(Xtrim, y)
+        X_sir = sir.transform(Xtrim)
+
+        # save results
+        print("save")
+        res = {
+            "model": sir,
+            "X": X,
+            "Xtrim": Xtrim,
+            "y": y,
+            "X_sir": X_sir,
+            "ind": ind
+        }
+
+        with open(output[0], "wb") as of:
+            pickle.dump(res, of)
+
+rule sir_effects:
+    """Compare sliced inverse regression directions to LANTERN effects"""
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/lantern/full/model.pt",
+        "figures/{ds}-{phenotype}/{target}/sir-fit.pkl"
+    output:
         "figures/{ds}-{phenotype}/{target}/sir-effects.png"
     resources:
         mem = "32000M"
+    group: "figure"
     run:
+        import pickle
+
         import pandas as pd
         import numpy as np                                    
         import matplotlib.pyplot as plt
@@ -36,16 +194,22 @@ rule sir_effects:
             default=0,
         )
 
+        # load fit
+        with open(input[-1], "rb") as f:
+            fit = pickle.load(f)
+        sir = fit["model"]
+        Xtrim = fit["Xtrim"]
+        ind = fit["ind"]
+        X_sir = fit["X_sir"]
+
         # setup LANTERN
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", K)
         W = model.basis.W_mu[:, model.basis.order].detach().numpy()
         X, y = ds[:len(ds)][:2]
         y = y[:, p].numpy()
 
-        # setup SIR
-        sir = SlicedInverseRegression(n_directions=8, n_slices=30)
-
-        sir.fit(X, y)
+        # remove ignored mutations
+        W = W[ind, :]
 
         # setup figure
         K = fget(
@@ -58,7 +222,7 @@ rule sir_effects:
             default=8,
         )
 
-        alpha = 0.01
+        alpha = 0.00
         plt.figure(figsize=(3 * D, 3 * K))
         for k in range(K):
             for d in range(D):
@@ -89,17 +253,122 @@ rule sir_effects:
         plt.tight_layout()
         plt.savefig(output[0], bbox_inches="tight")
 
+rule sir_effects_corr:
+    """Correlation between sliced inverse regression directions to LANTERN effects"""
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/lantern/full/model.pt",
+        "figures/{ds}-{phenotype}/{target}/sir-fit.pkl"
+    output:
+        "figures/{ds}-{phenotype}/{target}/sir-effects-corr.png"
+    resources:
+        mem = "32000M"
+    group: "figure"
+    run:
+        import pandas as pd
+        import numpy as np                                    
+        import matplotlib.pyplot as plt
+        from sliced import SlicedInverseRegression
+        from scipy.stats import pearsonr
+
+        from lantern.dataset.tokenizer import Tokenizer
+
+        # Configuration
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+
+        K = dsget("K", 8)
+
+        def fget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(
+                config,
+                f"figures/sir/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/{pth}",
+                default=default,
+            )
+
+        p = fget(
+            "p",
+            default=0,
+        )
+
+        # load fit
+        with open(input[-1], "rb") as f:
+            fit = pickle.load(f)
+        sir = fit["model"]
+        Xtrim = fit["Xtrim"]
+        ind = fit["ind"]
+        X_sir = fit["X_sir"]
+
+        # setup LANTERN
+        df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", K)
+        W = model.basis.W_mu[:, model.basis.order].detach().numpy()
+        X, y = ds[:len(ds)][:2]
+        y = y[:, p].numpy()
+
+        # remove ignored mutations
+        W = W[ind, :]
+
+        # setup figure
+        K = fget(
+            "zdim",
+            default=K,
+        )
+
+        D = fget(
+            "wdim",
+            default=8,
+        )
+
+        C = np.zeros((K, D))  # correlation
+        S = np.zeros((K, D))  # significance
+
+        for k in range(K):
+            for d in range(D):
+                # remove outliers
+                _d = sir.directions_[d, :]
+                _w = W[:, k]
+
+                sel = abs(_d - np.mean(_d)) < 5 * np.std(_d)
+                sel = sel & (abs(_w - np.mean(_w)) < 5 * np.std(_w))
+
+                C[k, d], S[k, d] = pearsonr(sir.directions_[d, sel], W[sel, k])
+
+        plt.imshow(C, aspect="auto", cmap="PRGn", origin="lower", vmin=-1, vmax=1)
+        for k in range(K):
+            for d in range(D):
+                if S[k, d] < 0.05:
+                    plt.text(
+                        d - 0.25,
+                        k - 0.5,
+                        "*",
+                        fontsize=84,
+                        fontweight="heavy",
+                        multialignment="center",
+                    )
+
+        plt.xticks(range(D), [f"$w_{d+1}$" for d in range(D)])
+        plt.yticks(range(D), [f"$z_{d+1}$" for d in range(K)])
+                    
+        plt.colorbar()
+        plt.tight_layout()
+        plt.savefig(output[0], bbox_inches="tight")
+
 
 rule sir_dims:
     """Plot individual directions versus phenotype"""
     input:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
-        "experiments/{ds}-{phenotype}/lantern/full/model.pt"
+        "experiments/{ds}-{phenotype}/lantern/full/model.pt",
+        "figures/{ds}-{phenotype}/{target}/sir-fit.pkl"
     output:
         "figures/{ds}-{phenotype}/{target}/sir-dims.png"
     resources:
         mem = "32000M"
+    group: "figure"
     run:
         import pandas as pd
         import numpy as np                                    
@@ -128,11 +397,22 @@ rule sir_dims:
             default=0,
         )
 
+        # load fit
+        with open(input[-1], "rb") as f:
+            fit = pickle.load(f)
+        sir = fit["model"]
+        Xtrim = fit["Xtrim"]
+        ind = fit["ind"]
+        X_sir = fit["X_sir"]
+
         # setup LANTERN
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", K)
         W = model.basis.W_mu[:, model.basis.order].detach().numpy()
         X, y = ds[:len(ds)][:2]
         y = y[:, p].numpy()
+
+        # remove ignored mutations
+        W = W[ind, :]
 
         phenotype_name = get(
             config,
@@ -144,12 +424,6 @@ rule sir_dims:
             f"figures/sir/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/raw",
             default=None,
         )
-
-        # setup SIR
-        sir = SlicedInverseRegression(n_directions=8, n_slices=30)
-
-        sir.fit(X, y)
-        X_sir = sir.transform(X)
 
         if raw is not None:
             y = y * df[raw].std() + df[raw].mean()
@@ -171,11 +445,13 @@ rule sir_variance:
     input:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
-        "experiments/{ds}-{phenotype}/lantern/full/model.pt"
+        "experiments/{ds}-{phenotype}/lantern/full/model.pt",
+        "figures/{ds}-{phenotype}/{target}/sir-fit.pkl"
     output:
         "figures/{ds}-{phenotype}/{target}/sir-variance.png"
     resources:
         mem = "32000M"
+    group: "figure"
     run:
         import pandas as pd
         import numpy as np                                    
@@ -204,17 +480,22 @@ rule sir_variance:
             default=0,
         )
 
+        # load fit
+        with open(input[-1], "rb") as f:
+            fit = pickle.load(f)
+        sir = fit["model"]
+        Xtrim = fit["Xtrim"]
+        ind = fit["ind"]
+        X_sir = fit["X_sir"]
+
         # setup LANTERN
         df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", K)
         W = model.basis.W_mu[:, model.basis.order].detach().numpy()
         X, y = ds[:len(ds)][:2]
         y = y[:, p].numpy()
 
-
-        # setup SIR
-        sir = SlicedInverseRegression(n_directions=8, n_slices=30)
-
-        sir.fit(X, y)
+        # remove ignored mutations
+        W = W[ind, :]
 
         _, ax = plt.subplots()
         

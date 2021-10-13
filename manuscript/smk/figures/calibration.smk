@@ -7,7 +7,7 @@ rule calibration:
         expand("experiments/{dataset}-{phenotype}/{model}/cv{cv}/pred-val.csv", cv=range(10), allow_missing=True)
     output:
         "figures/{dataset}-{phenotype}/{model}/cv-calibration.png"
-
+    group: "figure"
     run:
         scores = pd.concat([pd.read_csv(pth) for pth in input])
         D = len(get(config, f"{wildcards.dataset}/phenotypes/{wildcards.phenotype}"))

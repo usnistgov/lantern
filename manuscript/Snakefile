@@ -87,6 +87,11 @@ rule train_torch:
             dataset=["gfp-brightness", "laci-joint", "covid-joint"],
         ),
         expand(
+            "experiments/{dataset}/lantern/full-r{r}/model.pt",
+            dataset=["gfp-brightness", "laci-joint", "covid-joint"],
+            r = range(2)
+        ),
+        expand(
             "experiments/{dataset}/{model}/cv{cv}-n{n}000/model.pt",
             dataset=["laci-joint", "gfp-brightness"],
             cv=range(10),
@@ -169,7 +174,17 @@ rule exp_figures:
                 "covid-joint/bind",
                 "gfp-brightness/brightness",
             ],
-            fig=["surface", "gradient", "robustness", "laplacian", "additivity", "sir-effects", "sir-dims"],
+            fig=[
+                "surface",
+                "gradient",
+                "robustness",
+                "laplacian",
+                "additivity",
+                # "sir-effects",
+                # "sir-effects-corr",
+                # "sir-dims",
+                # "sir-variance",
+            ],
         ),
         expand(
             "figures/{dataset}/anglehist.png",
@@ -195,10 +210,10 @@ rule pred_figures:
     input:
         "figures/cvr2.png",
         "figures/laci-joint/sample-size-ec50-norm.png",
-        "figures/laci-joint/sample-size-ginf-norm.png",
+        #"figures/laci-joint/sample-size-ginf-norm.png",
         "figures/gfp-brightness/sample-size-phenotype.png",
-        "figures/covid-joint/sample-size-func_score_norm_exp.png",
-        "figures/covid-joint/sample-size-func_score_norm_bind.png",
+        #"figures/covid-joint/sample-size-func_score_norm_exp.png",
+        #"figures/covid-joint/sample-size-func_score_norm_bind.png",
     shell:
         "tar -czf figures.tar.gz figures/*"
 
@@ -224,10 +239,3 @@ rule help:
 rule environment:
     shell:
         """conda env export -n lantern > environment.yml"""
-
-# rule a:
-#     input: expand("tmp/in/{a}.txt", a=range(10))
-#     output: "tmp/out/a.txt"
-# 
-# rule b:
-#     input: "tmp/{a}/out.txt"

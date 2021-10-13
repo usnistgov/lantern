@@ -4,6 +4,7 @@ rule diffops:
     output:
         "figures/diffops-curvature.png",
         "figures/diffops-slope.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("laci", "joint", "lantern", "full", 8)
 

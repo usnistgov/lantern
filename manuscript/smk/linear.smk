@@ -152,7 +152,7 @@ rule lin_prediction:
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
         
-        CUDA = dsget("linear/prediction/cuda", default=True)
+        CUDA = dsget("linear/prediction/cuda", default=False)
 
         # Load the dataset
         df = pd.read_csv(input[0])
@@ -296,7 +296,7 @@ rule lin_prediction_size:
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
         
-        CUDA = dsget("linear/prediction/cuda", default=True)
+        CUDA = dsget("linear/prediction/cuda", default=False)
 
         # Load the dataset
         df = pd.read_csv(input[0])

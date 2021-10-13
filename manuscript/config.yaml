@@ -7,11 +7,11 @@ gfp:
   
   lantern:
     prediction:
-      cuda: True
+      cuda: False
   
   feedforward:
     prediction:
-      cuda: True
+      cuda: False
   
   alphabet: ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y","*"]
 
@@ -30,11 +30,11 @@ laci:
   
   lantern:
     prediction:
-      cuda: True
+      cuda: False
   
   feedforward:
     prediction:
-      cuda: True
+      cuda: False
 
 covid:
   N: 125000
@@ -54,11 +54,11 @@ covid:
   
   lantern:
     prediction:
-      cuda: True
+      cuda: False
   
   feedforward:
     prediction:
-      cuda: True
+      cuda: False
 
 figures:
   surface:

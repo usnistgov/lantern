@@ -9,3 +9,4 @@ docs/examples
 docs/*.pt
 docs/*.csv
 docs/_build/
+manuscript/experiments/
