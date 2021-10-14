@@ -62,67 +62,6 @@ rule sir_fit:
         print("find colinear")
 
         p = X.shape[1]
-        # possible co-linear pairs
-        # pairs = dict([(i, set(range(p))) for i in range(p)])
-
-        # groups = [set(range(p))]
-
-        # # pairs = dict([(p, None) for p in combinations(range(p), 2)])
-        # pbar = tqdm(range(X.shape[0]))
-        # for n in pbar:
-
-        #     ind, = torch.where(X[n, :] == 1) # check these
-
-        #     new_groups = []
-        #     for g in groups:
-        #         subset = set([i.item() for i in ind if i.item() in g])
-        #         new_groups.append(subset)
-        #         new_groups.append(g - subset)
-
-        #         # check if this groups needs to be split
-        #         # any indices that don't match in the group need to be split
-
-        #         # new_groups.append(g)
-        #     groups = [g for g in new_groups if len(g) > 0]
-        #     pbar.set_postfix(groups=len(groups))
-
-        #     # for i in range(p):
-        #     #     if i in ind:
-        #     #         for j in list(pairs[i]): # this gets shorter over time
-        #     #             if j not in ind:
-        #     #                 pairs[i].remove(j)
-        #     #     else:
-        #     #         for j in list(pairs[i]):
-        #     #             if j in ind:
-        #     #                 pairs[i].remove(j)
-
-        #     # ind, = torch.where(X[n, :] == 1)
-        #     # keys = list(pairs.keys())
-        #     # for i, j in keys:
-        #     #     if (i in ind and j not in ind) or (i not in ind and j not in ind):
-        #     #         del pairs[(i, j)]
-        #     # pbar.set_postfix("{:,}".format(len(list(pairs.keys()))))
-
-        #     # for i in range(p):
-        #     #     if i not in ind:
-        #     #         for j in ind:
-        #     #             try:
-        #     #                 if i < j:
-        #     #                     del pairs[(i, j.item())]
-        #     #                 else:
-        #     #                     del pairs[(j.item(), i)]
-        #     #             except: # it's fine if key already deleted
-        #     #                 pass
-
-
-        # TODO: turn pairs into removed things
-
-        # with Pool(10) as pool:
-        #     ind = [
-        #         i
-        #         for i, b in enumerate(pool.map(_find_colinear, zip([X] * p, range(p))))
-        #         if b
-        #     ]
         ind = [i for i in range(p)]
         for i in range(p):
             for j in range(i + 1, p):

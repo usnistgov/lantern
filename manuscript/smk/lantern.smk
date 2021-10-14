@@ -499,3 +499,124 @@ rule lantern_prediction_size:
                     pbar=dsget("lantern/prediction/pbar", default=True),
                 ),
             )
+
+rule lantern_cv_k:
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+    output:
+        "experiments/{ds}-{phenotype}/lantern-K{k,\d+}/cv{cv,\d+}/model.pt",
+        "experiments/{ds}-{phenotype}/lantern-K{k,\d+}/cv{cv,\d+}/loss.pt"
+    resources:
+        gres="gpu:1",
+        partition="singlegpu",
+        time = "24:00:00",
+    run:
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+
+        # Load the dataset
+        df = pd.read_csv(input[0])
+        ds = pickle.load(open(input[1], "rb"))
+
+        # Build model and loss
+        model = Model(
+            VariationalBasis.fromDataset(ds, int(wildcards.k), meanEffectsInit=False),
+            Phenotype.fromDataset(ds, int(wildcards.k))
+        )
+
+        # Setup training infrastructure
+        train = Subset(ds, np.where(df.cv != float(wildcards.cv))[0])
+        validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
+        tloader = DataLoader(
+            train, batch_size=dsget("lantern/batch-size", default=8192)
+        )
+        vloader = DataLoader(
+            validation, batch_size=dsget("lantern/batch-size", default=8192)
+        )
+
+        loss = model.loss(N=len(train), sigma_hoc=ds.errors is not None)
+
+        if dsget("cuda", True):
+            model = model.cuda()
+            loss = loss.cuda()
+            ds.to("cuda")
+
+        optimizer = Adam(loss.parameters(), lr=dsget("lantern/lr", default=0.01))
+
+        mlflow.set_experiment(f"lantern cross-validation K={wildcards.k}")
+
+        lr = dsget("lantern/lr", default=0.01)
+        epochs = dsget("lantern/epochs", default=5000)
+
+        train_lantern(
+            input,
+            output,
+            wildcards,
+            tloader,
+            vloader,
+            optimizer,
+            loss,
+            model,
+            lr,
+            epochs,
+        )
+
+
+rule lantern_prediction_cv_k:
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/lantern-K{k,\d+}/cv{cv,\d+}/model.pt"
+    output:
+        "experiments/{ds}-{phenotype}/lantern-K{k,\d+}/cv{cv,\d+}/pred-val.csv"
+    group: "predict"
+    resources:
+        gres="gpu:1",
+        partition="singlegpu",
+    run:
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+
+        CUDA = dsget("lantern/prediction/cuda", default=True) and torch.cuda.is_available()
+
+        # Load the dataset
+        df = pd.read_csv(input[0])
+        ds = pickle.load(open(input[1], "rb"))
+
+        validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
+
+        # Build model and loss
+        model = Model(
+            VariationalBasis.fromDataset(ds, int(wildcards.k), meanEffectsInit=False),
+            Phenotype.fromDataset(ds, int(wildcards.k))
+        )
+
+        model.load_state_dict(torch.load(input[2], "cpu"))
+        model.eval()
+
+        if CUDA:
+            model = model.cuda()
+
+        def save(ofile, df, **kwargs):
+            for k, t in kwargs.items():
+                for i in range(t.shape[1]):
+                    df["{}{}".format(k, i)] = t[:, i]
+
+            df.to_csv(ofile, index=False)
+
+        with torch.no_grad():
+            save(
+                output[0],
+                df[df.cv == float(wildcards.cv)],
+                **predictions(
+                    ds.D,
+                    model,
+                    validation,
+                    cuda=CUDA,
+                    size=dsget("lantern/prediction/size", default=32),
+                    pbar=dsget("lantern/prediction/pbar", default=True),
+                ),
+            )

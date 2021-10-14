@@ -52,6 +52,9 @@ include: "smk/figures/highlight.smk"
 include: "smk/figures/dimensions.smk"
 include: "smk/figures/diffops.smk"
 include: "smk/figures/sir.smk"
+include: "smk/figures/nn-depth.smk"
+include: "smk/figures/hyperparams.smk"
+include: "smk/figures/effects.smk"
 
 rule data:
     input:
@@ -180,12 +183,22 @@ rule exp_figures:
                 "robustness",
                 "laplacian",
                 "additivity",
-                # "sir-effects",
-                # "sir-effects-corr",
-                # "sir-dims",
-                # "sir-variance",
             ],
         ),
+        # expand(
+        #     "figures/{dstarg}/{fig}.png",
+        #     dstarg=[
+        #         "laci-joint/ec50",
+        #         "laci-joint/ginf",
+        #         "gfp-brightness/brightness",
+        #     ],
+        #     fig=[
+        #         "sir-effects",
+        #         "sir-effects-corr",
+        #         "sir-dims",
+        #         "sir-variance",
+        #     ],
+        # ),
         expand(
             "figures/{dataset}/anglehist.png",
             dataset=["laci-joint", "covid-joint", "gfp-brightness"],
@@ -214,6 +227,26 @@ rule pred_figures:
         "figures/gfp-brightness/sample-size-phenotype.png",
         #"figures/covid-joint/sample-size-func_score_norm_exp.png",
         #"figures/covid-joint/sample-size-func_score_norm_bind.png",
+        [
+            f"figures/{ds}-{phen}/nn-depth-{targ}.png"
+            for (ds, phen, targ) in [
+                ("laci", "joint", "ec50-norm"),
+                ("laci", "joint", "ginf-norm"),
+                ("gfp", "brightness", "phenotype"),
+                ("covid", "joint", "func_score_norm_bind"),
+                ("covid", "joint", "func_score_norm_exp"),
+            ]
+        ],
+        [
+            f"figures/{ds}-{phen}/lantern-vary-k-{targ}.png"
+            for (ds, phen, targ) in [
+                ("laci", "joint", "ec50-norm"),
+                # ("laci", "joint", "ginf-norm"),
+                # ("gfp", "brightness", "phenotype"),
+                # ("covid", "joint", "func_score_norm_bind"),
+                # ("covid", "joint", "func_score_norm_exp"),
+            ]
+        ],
     shell:
         "tar -czf figures.tar.gz figures/*"
 
