@@ -55,6 +55,7 @@ include: "smk/figures/sir.smk"
 include: "smk/figures/nn-depth.smk"
 include: "smk/figures/hyperparams.smk"
 include: "smk/figures/effects.smk"
+include: "smk/figures/affine.smk"
 
 rule data:
     input:
@@ -202,6 +203,12 @@ rule exp_figures:
         expand(
             "figures/{dataset}/anglehist.png",
             dataset=["laci-joint", "covid-joint", "gfp-brightness"],
+        ),
+        expand(
+            "figures/{dataset}/affine-history.png",
+            dataset=["laci-joint",
+                     #"covid-joint", "gfp-brightness"
+            ],
         ),
         # highlights
         "figures/gfp-brightness/brightness/surface-focus.png",

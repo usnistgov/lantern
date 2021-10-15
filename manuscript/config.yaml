@@ -8,6 +8,13 @@ gfp:
   lantern:
     prediction:
       cuda: True
+
+    affine:
+      rotate-45:
+        transformations:
+          - transform: "rotation"
+            theta: 45.0 
+              
   
   feedforward:
     prediction:
@@ -32,6 +39,12 @@ laci:
     prediction:
       cuda: True
   
+    affine:
+      rotate-45:
+        transformations:
+          - transform: "rotation"
+            theta: 45.0 
+              
   feedforward:
     prediction:
       cuda: True
