@@ -205,7 +205,8 @@ rule exp_figures:
             dataset=["laci-joint", "covid-joint", "gfp-brightness"],
         ),
         expand(
-            "figures/{dataset}/affine-history.png",
+            "figures/{dataset}/affine-{fig}.png",
+            fig = ["history", "effects"],
             dataset=["laci-joint",
                      #"covid-joint", "gfp-brightness"
             ],

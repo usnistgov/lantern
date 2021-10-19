@@ -44,6 +44,11 @@ laci:
         transformations:
           - transform: "rotation"
             theta: 45.0 
+      shrink-z0:
+        transformations:
+          - transform: "scale"
+            si: 0.2
+            sj: 1.0
               
   feedforward:
     prediction:

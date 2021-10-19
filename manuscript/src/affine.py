@@ -14,7 +14,8 @@ class Transformation:
     j: int = attr.ib()
 
     def __call__(self, t):
-        raise NotImplementedError()
+        # _t should be defined in post init method
+        return torch.mm(self._t, t)
 
 
 @attr.s
@@ -30,8 +31,29 @@ class Rotation(Transformation):
         self._t[self.j, self.i] = torch.sin(torch.rad2deg(theta))
         self._t[self.j, self.j] = torch.cos(torch.rad2deg(theta))
 
-    def __call__(self, t):
-        return torch.mm(self._t, t)
+
+@attr.s
+class Scale(Transformation):
+
+    si: float = attr.ib()
+    sj: float = attr.ib()
+
+    def __attrs_post_init__(self):
+        self._t = torch.eye(self.K)
+        self._t[self.i, self.i] = self.si
+        self._t[self.j, self.j] = self.sj
+
+
+@attr.s
+class Shear(Transformation):
+
+    si: float = attr.ib()
+    sj: float = attr.ib()
+
+    def __attrs_post_init__(self):
+        self._t = torch.eye(self.K)
+        self._t[self.i, self.j] = self.si
+        self._t[self.i, self.j] = self.sj
 
 
 def transform(model, *transforms):

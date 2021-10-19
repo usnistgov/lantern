@@ -701,6 +701,16 @@ rule lantern_affine:
                 transforms.append(
                     affine.Rotation(model.basis.K, i, j, torch.tensor(tc["theta"]))
                 )
+            elif tc["transform"] == "scale":
+                transforms.append(
+                    affine.Scale(model.basis.K, i, j, torch.tensor(tc["si"]), torch.tensor(tc["sj"]))
+                )
+            elif tc["transform"] == "shear":
+                transforms.append(
+                    affine.Shear(model.basis.K, i, j, torch.tensor(tc["si"]), torch.tensor(tc["sj"]))
+                )
+            else:
+                raise ValueError("Unknown transform {}".format(tc["transform"]))
         affine.transform(model, *transforms)
 
         ##############################################################################
@@ -832,12 +842,51 @@ rule lantern_affine:
             loss = loss.cuda()
             ds.to("cuda")
 
-        optimizer = Adam(loss.parameters(), lr=dsget("lantern/lr", default=0.01))
-
         mlflow.set_experiment(f"lantern affine")
 
+        ##############################################################################
+        # pretrain liklihood
+
+        loss = model.surface.loss(N=len(ds), sigma_hoc=ds.errors is not None)
+        if dsget("cuda", True):
+            loss = loss.cuda()
+
+        prms = list(loss.mll.likelihood.parameters())
+        if ds.errors is not None:
+            prms.append(loss.raw_sigma_hoc)
+
+        optimizer = Adam(prms, lr=dsget("lantern/lr", default=0.01))
+
         lr = dsget("lantern/lr", default=0.01)
-        epochs = 1000 #dsget("lantern/epochs", default=5000)
+
+        wildcards.cv = -1
+        record = train_lantern(
+            input,
+            output,
+            wildcards,
+            tloader,
+            vloader,
+            optimizer,
+            loss,
+            model,
+            lr,
+            epochs=500,
+        )
+
+        ploss = loss
+        
+        ##############################################################################
+
+        loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
+        if dsget("cuda", True):
+            loss = loss.cuda()
+
+        loss.losses[-1].load_state_dict(ploss.state_dict())
+
+        optimizer = Adam(loss.parameters(), lr=dsget("lantern/lr", default=0.01))
+
+        lr = dsget("lantern/lr", default=0.01)
+        epochs = dsget("lantern/epochs", default=5000)
 
         wildcards.cv = -1
         record = train_lantern(
