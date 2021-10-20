@@ -56,6 +56,7 @@ include: "smk/figures/nn-depth.smk"
 include: "smk/figures/hyperparams.smk"
 include: "smk/figures/effects.smk"
 include: "smk/figures/affine.smk"
+include: "smk/figures/sparse.smk"
 
 rule data:
     input:
@@ -186,29 +187,58 @@ rule exp_figures:
                 "additivity",
             ],
         ),
-        # expand(
-        #     "figures/{dstarg}/{fig}.png",
-        #     dstarg=[
-        #         "laci-joint/ec50",
-        #         "laci-joint/ginf",
-        #         "gfp-brightness/brightness",
-        #     ],
-        #     fig=[
-        #         "sir-effects",
-        #         "sir-effects-corr",
-        #         "sir-dims",
-        #         "sir-variance",
-        #     ],
-        # ),
         expand(
-            "figures/{dataset}/anglehist.png",
+            "figures/{dstarg}/{fig}-r{r}.png",
+            dstarg=[
+                "laci-joint/ec50",
+                "laci-joint/ginf",
+                "covid-joint/exp",
+                "covid-joint/bind",
+                "gfp-brightness/brightness",
+            ],
+            fig=[
+                "surface",
+            ],
+            r = range(1, 3),
+        ),
+        expand(
+            "figures/{dstarg}/{fig}-r{r}.png",
+            dstarg=[
+                "laci-joint",
+                "covid-joint",
+                "gfp-brightness",
+            ],
+            fig=[
+                "retrain-effects"
+            ],
+            r = range(1, 3),
+        ),
+        expand(
+            "figures/{dstarg}/{fig}.png",
+            dstarg=[
+                "laci-joint/ec50",
+                "laci-joint/ginf",
+                "gfp-brightness/brightness",
+                # "covid-joint/exp",
+                # "covid-joint/bind",
+            ],
+            fig=[
+                "sir-effects",
+                "sir-effects-corr",
+                "sir-dims",
+                "sir-variance",
+            ],
+        ),
+        expand(
+            "figures/{dataset}/{fig}.png",
             dataset=["laci-joint", "covid-joint", "gfp-brightness"],
+            fig = ["anglehist", "effects-sparsity", "effects-pairplot"]
         ),
         expand(
             "figures/{dataset}/affine-{fig}.png",
             fig = ["history", "effects"],
-            dataset=["laci-joint",
-                     #"covid-joint", "gfp-brightness"
+            dataset=["laci-joint", "gfp-brightness",
+                     #"covid-joint"
             ],
         ),
         # highlights

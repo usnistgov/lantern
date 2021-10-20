@@ -11,7 +11,7 @@ from lantern.model.basis import VariationalBasis
 from lantern.model.surface import Phenotype
 
 
-def load_run(dataset, phenotype, model, run, K=8):
+def load_run(dataset, phenotype, model, run, K=8, slug=""):
     df = pd.read_csv(f"data/processed/{dataset}.csv")
     ds = pickle.load(open(f"data/processed/{dataset}-{phenotype}.pkl", "rb"))
 
@@ -19,7 +19,9 @@ def load_run(dataset, phenotype, model, run, K=8):
     _model = Model(VariationalBasis.fromDataset(ds, K), Phenotype.fromDataset(ds, K),)
 
     _model.load_state_dict(
-        torch.load(f"experiments/{dataset}-{phenotype}/{model}/{run}/model.pt", "cpu")
+        torch.load(
+            f"experiments/{dataset}-{phenotype}/{model}/{run}{slug}/model.pt", "cpu"
+        )
     )
 
     return df, ds, _model

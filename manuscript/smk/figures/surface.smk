@@ -6,9 +6,9 @@ rule surface:
     input:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
-        "experiments/{ds}-{phenotype}/lantern/full/model.pt"
+        "experiments/{ds}-{phenotype}/lantern/full{rerun}/model.pt"
     output:
-        "figures/{ds}-{phenotype}/{target}/surface.png"
+        "figures/{ds}-{phenotype}/{target}/surface{rerun,-r.*}.png"
     group: "figure"
     run:
 
@@ -72,7 +72,14 @@ rule surface:
             default={},
         )
 
-        df, ds, model = util.load_run(wildcards.ds, wildcards.phenotype, "lantern", "full", dsget("K", 8))
+        df, ds, model = util.load_run(
+            wildcards.ds,
+            wildcards.phenotype,
+            "lantern",
+            "full",
+            dsget("K", 8),
+            slug=wildcards.rerun,
+        )
         model.eval()
 
         z, fmu, fvar, Z1, Z2, y, Z = util.buildLandscape(

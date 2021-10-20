@@ -10,10 +10,21 @@ gfp:
       cuda: True
 
     affine:
-      rotate-45:
+      rotate-20:
         transformations:
           - transform: "rotation"
-            theta: 45.0 
+            theta: 20.0 
+      shrink-z0:
+        transformations:
+          - transform: "scale"
+            si: 0.2
+            sj: 1.0
+      shear-z0:
+        transformations:
+          - transform: "shear"
+            si: 2.0
+            sj: 0.0
+              
               
   
   feedforward:
@@ -40,15 +51,20 @@ laci:
       cuda: True
   
     affine:
-      rotate-45:
+      rotate-20:
         transformations:
           - transform: "rotation"
-            theta: 45.0 
+            theta: 20.0 
       shrink-z0:
         transformations:
           - transform: "scale"
             si: 0.2
             sj: 1.0
+      shear-z0:
+        transformations:
+          - transform: "shear"
+            si: 5.0
+            sj: 0.0
               
   feedforward:
     prediction:

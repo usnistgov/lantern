@@ -16,7 +16,7 @@ rule sir_fit:
         "figures/{ds}-{phenotype}/{target}/sir-fit.pkl"
     resources:
         mem = "32000M",
-        time = "8:00:00"
+        time = "16:00:00"
     group: "figure"
     run:
         import pickle
@@ -161,7 +161,7 @@ rule sir_effects:
             default=8,
         )
 
-        alpha = 0.00
+        alpha = 0.02
         plt.figure(figsize=(3 * D, 3 * K))
         for k in range(K):
             for d in range(D):
@@ -336,6 +336,11 @@ rule sir_dims:
             default=0,
         )
 
+        D = fget(
+            "wdim",
+            default=8,
+        )
+
         # load fit
         with open(input[-1], "rb") as f:
             fit = pickle.load(f)
@@ -367,13 +372,13 @@ rule sir_dims:
         if raw is not None:
             y = y * df[raw].std() + df[raw].mean()
 
-        plt.figure(figsize=(8, 6))
-        for d in range(8):
-            plt.subplot(2, 4, d + 1)
+        plt.figure(figsize=(3*D, 3))
+        for d in range(D):
+            plt.subplot(1, D, d + 1)
             plt.hist2d(X_sir[:, d], y, bins=30, norm=mpl.colors.LogNorm())
             plt.xlabel(f"$w_{d+1}$")
 
-            if d % 4 == 0:
+            if d == 0:
                 plt.ylabel(phenotype_name)
 
         plt.tight_layout()

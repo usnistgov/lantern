@@ -136,7 +136,8 @@ rule lantern_cv:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}/loss.pt"
     resources:
         gres="gpu:1",
-        partition="batch",
+        partition="singlegpu",
+        time = "24:00:00",
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -244,11 +245,12 @@ rule lantern_full:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
     output:
-        "experiments/{ds}-{phenotype}/lantern/full{rerun,-r.*}{kernel,-kern-.*}/model.pt",
-        "experiments/{ds}-{phenotype}/lantern/full{rerun,-r.*}{kernel,-kern-.*}/loss.pt"
+        "experiments/{ds}-{phenotype}/lantern/full{rerun,(-r.*)?}{kernel,(-kern-.*)?}/model.pt",
+        "experiments/{ds}-{phenotype}/lantern/full{rerun,(-r.*)?}{kernel,(-kern-.*)?}/loss.pt"
     resources:
         gres="gpu:1",
-        partition="batch",
+        partition="singlegpu",
+        time = "24:00:00",
     group: "train"
     run:
         def dsget(pth, default):
@@ -404,7 +406,8 @@ rule lantern_cv_size:
     group: "train"
     resources:
         gres="gpu:1",
-        partition="batch",
+        partition="singlegpu",
+        time = "24:00:00",
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""

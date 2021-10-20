@@ -26,10 +26,10 @@ class Rotation(Transformation):
     def __attrs_post_init__(self):
         self._t = torch.eye(self.K)
         theta = self.theta
-        self._t[self.i, self.i] = torch.cos(torch.rad2deg(theta))
-        self._t[self.i, self.j] = -torch.sin(torch.rad2deg(theta))
-        self._t[self.j, self.i] = torch.sin(torch.rad2deg(theta))
-        self._t[self.j, self.j] = torch.cos(torch.rad2deg(theta))
+        self._t[self.i, self.i] = torch.cos(torch.deg2rad(theta))
+        self._t[self.i, self.j] = -torch.sin(torch.deg2rad(theta))
+        self._t[self.j, self.i] = torch.sin(torch.deg2rad(theta))
+        self._t[self.j, self.j] = torch.cos(torch.deg2rad(theta))
 
 
 @attr.s
@@ -53,7 +53,7 @@ class Shear(Transformation):
     def __attrs_post_init__(self):
         self._t = torch.eye(self.K)
         self._t[self.i, self.j] = self.si
-        self._t[self.i, self.j] = self.sj
+        self._t[self.j, self.i] = self.sj
 
 
 def transform(model, *transforms):
@@ -86,5 +86,6 @@ def transform(model, *transforms):
             for i in range(Z.shape[0]):
                 Z[i, :, :] = tr(Z[i, :, :].t()).t()
         else:
-            Z = tr(Z.t()).t()
-    Z.data.copy_(Z)
+            Z[:, :] = tr(Z.t()).t()
+
+    Z.data.copy_(Z)  # is this necessary?
