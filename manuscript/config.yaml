@@ -94,6 +94,35 @@ covid:
     prediction:
       cuda: True
 
+simulations:
+  K1:
+    K: 1
+    p: 20
+    N: 500
+    mutation_rate: 0.05
+    sigma_y: 0.05
+
+  K2:
+    K: 2
+    p: 20
+    N: 500
+    mutation_rate: 0.05
+    sigma_y: 0.05
+
+  K4:
+    K: 4
+    p: 40
+    N: 1000
+    mutation_rate: 0.05
+    sigma_y: 0.05
+
+  K8:
+    K: 8
+    p: 40
+    N: 1000
+    mutation_rate: 0.05
+    sigma_y: 0.05
+
 figures:
   surface:
     gfp-brightness:

@@ -43,6 +43,66 @@ rule gfp_surface_focus:
 
         plt.savefig(output[0], bbox_inches="tight", transparent=True)
 
+rule gfp_surface_z2:
+    """
+    Slice of z2 for avgfp
+    """
+
+    input:
+        "data/processed/gfp.csv",
+        "data/processed/gfp-brightness.pkl",
+        "experiments/gfp-brightness/lantern/full/model.pt",
+    output:
+        "figures/gfp-brightness/brightness/surface-z2.png"
+    group: "figure"
+    run:
+        df, ds, model = util.load_run("gfp", "brightness", "lantern", "full", 8)
+        model.eval()
+
+        raw = "medianBrightness"
+
+        z1pos = 1.8
+        X, y = ds[: len(ds)]
+        with torch.no_grad():
+            Z = model.basis(X)
+
+            zpred = torch.zeros(100, 8)
+            zpred[:, model.basis.order[1]] = torch.linspace(
+                Z[:, model.basis.order[1]].min(), Z[:, model.basis.order[1]].max()
+            )
+            zpred[:, model.basis.order[0]] = z1pos
+
+            fpred = model.surface(zpred)
+            lo, hi = fpred.confidence_region()
+
+        ys = (Z[:, model.basis.order[0]] > z1pos - 0.3) & (Z[:, model.basis.order[0]] < z1pos + 0.3)
+
+        plt.hist2d(
+            Z[ys, model.basis.order[1]].numpy(),
+            y[ys, 0].numpy() * df[raw].std() + df[raw].mean(),
+            bins=30,
+            norm=mpl.colors.LogNorm(),
+        )
+        plt.plot(
+            zpred[:, model.basis.order[1]].numpy(),
+            fpred.mean * df[raw].std() + df[raw].mean(),
+            lw=3,
+            c="C1",
+            label="f(z)",
+        )
+        plt.fill_between(
+            zpred[:, model.basis.order[1]].numpy(),
+            lo.numpy() * df[raw].std() + df[raw].mean(),
+            hi.numpy() * df[raw].std() + df[raw].mean(),
+            alpha=0.6,
+            color="C1",
+        )
+        plt.xlabel("$z_2$")
+        plt.ylabel("avGFP Brightness")
+        plt.legend()
+        plt.ylim(2.4, 4.1)
+        plt.savefig(output[0], bbox_inches="tight", transparent=True)
+
 rule gfp_surface_bfp1:
     """
     """
@@ -511,6 +571,65 @@ rule laci_parametric:
         plt.tight_layout()
 
         plt.savefig(output[0], bbox_inches="tight")
+
+rule laci_surface_z1:
+    """
+    Slice of z1 for laci
+    """
+
+    input:
+        "data/processed/laci.csv",
+        "data/processed/laci-joint.pkl",
+        "experiments/laci-joint/lantern/full/model.pt",
+    output:
+        "figures/laci-joint/ec50/surface-z1.png"
+    group: "figure"
+    run:
+        df, ds, model = util.load_run("laci", "joint", "lantern", "full", 8)
+        model.eval()
+
+        raw = "ec50-norm"
+
+        z2pos = 0
+        X, y = ds[: len(ds)][:2]
+        with torch.no_grad():
+            Z = model.basis(X)
+
+            zpred = torch.zeros(100, 8)
+            zpred[:, model.basis.order[0]] = torch.linspace(
+                Z[:, model.basis.order[0]].min(), Z[:, model.basis.order[0]].max()
+            )
+            zpred[:, model.basis.order[1]] = z2pos
+
+            fpred = model.surface(zpred)
+            lo, hi = fpred.confidence_region()
+
+        ys = (Z[:, model.basis.order[1]] > z2pos - 0.3) & (Z[:, model.basis.order[1]] < z2pos + 0.3)
+
+        plt.hist2d(
+            Z[ys, model.basis.order[0]].numpy(),
+            y[ys, 0].numpy() * df[raw].std() + df[raw].mean(),
+            bins=30,
+            norm=mpl.colors.LogNorm(),
+        )
+        plt.plot(
+            zpred[:, model.basis.order[0]].numpy(),
+            fpred.mean[:, 0] * df[raw].std() + df[raw].mean(),
+            lw=3,
+            c="C1",
+            label="f(z)",
+        )
+        plt.fill_between(
+            zpred[:, model.basis.order[0]].numpy(),
+            lo[:, 0].numpy() * df[raw].std() + df[raw].mean(),
+            hi[:, 0].numpy() * df[raw].std() + df[raw].mean(),
+            alpha=0.6,
+            color="C1",
+        )
+        plt.xlabel("$z_1$")
+        plt.ylabel(r"LacI $\mathrm{EC}_{50}$")
+        plt.legend()
+        plt.savefig(output[0], bbox_inches="tight", transparent=True)
 
 COVID_BINDING_COLOR = "fuchsia"
 COVID_STABILITY_COLOR = "limegreen"

@@ -269,7 +269,7 @@ rule lantern_full:
 
         loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
 
-        if dsget("cuda", True):
+        if dsget("cuda", True) and torch.cuda.is_available():
             model = model.cuda()
             loss = loss.cuda()
             ds.to("cuda")
