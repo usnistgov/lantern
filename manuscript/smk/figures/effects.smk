@@ -128,3 +128,73 @@ rule retrain_effects_compare:
         plt.tight_layout()
         plt.savefig(output[0], bbox_inches="tight")
 
+
+rule effects_significance:
+    """
+    Number of significant effects for each dimension
+    """
+
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/lantern/full/model.pt"
+    group: "figure"
+    output:
+        "figures/{ds}-{phenotype}/effects-significance-count.png"
+    run:
+        import seaborn as sns
+
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+        
+        def fget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(
+                config,
+                f"figures/effects/{wildcards.ds}-{wildcards.phenotype}/{pth}",
+                default=default,
+            )
+        from scipy.stats import norm
+
+        K = dsget("K", 8)
+
+        df, ds, model = util.load_run(
+            wildcards.ds, wildcards.phenotype, "lantern", "full", K
+        )
+        model.eval()
+
+        qW = norm(
+            model.basis.W_mu[:, model.basis.order].detach().numpy(),
+            model.basis.W_log_sigma[:, model.basis.order].detach().exp().numpy(),
+        )
+
+        lo = qW.ppf(0.025)
+        hi = qW.ppf(0.975)
+        mu = qW.mean()
+
+        counts = []
+        levels = np.logspace(-4, -1)
+
+        for l in levels:
+            lo = qW.ppf(l / 2)
+            hi = qW.ppf(1 - l / 2)
+
+            counts.append((~((lo < 0) & (hi > 0))).sum(axis=0))
+
+        counts = np.array(counts)
+
+        plt.figure(figsize=(3, 2), dpi=200)
+
+        for k in range(K):
+            plt.plot(levels, counts[:, k], label=f"$z_{k+1}$")
+        plt.semilogx()
+        plt.yscale("symlog", linthresh=counts[counts>0].min()*0.99)
+        plt.xlabel("significance level")
+        plt.ylabel("significant effects")
+
+        fig = plt.gcf()
+        fig.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+
+        plt.tight_layout()
+        plt.savefig(output[0], bbox_inches="tight")

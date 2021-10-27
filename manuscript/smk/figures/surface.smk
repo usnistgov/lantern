@@ -6,9 +6,9 @@ rule surface:
     input:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
-        "experiments/{ds}-{phenotype}/lantern/full{rerun}/model.pt"
+        "experiments/{ds}-{phenotype}/lantern/full{rerun}{kernel}/model.pt"
     output:
-        "figures/{ds}-{phenotype}/{target}/surface{rerun,-r.*}.png"
+        "figures/{ds}-{phenotype}/{target}/surface{rerun,(-r.*)?}{kernel,(-kern-.*)?}.png"
     group: "figure"
     run:
 
@@ -78,7 +78,8 @@ rule surface:
             "lantern",
             "full",
             dsget("K", 8),
-            slug=wildcards.rerun,
+            slug=wildcards.rerun+wildcards.kernel,
+            kernel=wildcards.kernel
         )
         model.eval()
 

@@ -253,6 +253,7 @@ rule lantern_full:
         time = "24:00:00",
     group: "train"
     run:
+        from gpytorch.kernels import RBFKernel, RQKernel, MaternKernel, ScaleKernel
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
@@ -261,11 +262,44 @@ rule lantern_full:
         df = pd.read_csv(input[0])
         ds = pickle.load(open(input[1], "rb"))
 
-        # Build model and loss
-        model = Model(
-            VariationalBasis.fromDataset(ds, dsget("K", 8)),
-            Phenotype.fromDataset(ds, dsget("K", 8)),
-        )
+        # build kernel if necessary
+        kernel = None
+        if wildcards.kernel != "":
+            D = ds.D
+            baseKern = {
+                "rbf": RBFKernel,
+                "matern": MaternKernel,
+                "rq": RQKernel,
+            }[wildcards.kernel.split("-")[-1]]
+
+            # base component
+            if D > 1:
+                kernel = baseKern(ard_num_dims=4, batch_shape=torch.Size([D]))
+            else:
+                kernel = baseKern(ard_num_dims=4)
+            if kernel.has_lengthscale:
+                kernel.raw_lengthscale.requires_grad = False
+
+            # scale component
+            if D > 1:
+                kernel = ScaleKernel(kernel, batch_shape=torch.Size([D]))
+            else:
+                kernel = ScaleKernel(kernel)
+
+            # Build model and loss
+            model = Model(
+                VariationalBasis.fromDataset(ds, 4),
+                Phenotype.fromDataset(ds, 4, kernel=kernel),
+                # Phenotype.fromDataset(ds, dsget("K", 8)),
+            )
+        
+        else:
+            # Build model and loss
+            model = Model(
+                VariationalBasis.fromDataset(ds, dsget("K", 8)),
+                Phenotype.fromDataset(ds, dsget("K", 8), kernel=kernel),
+                # Phenotype.fromDataset(ds, dsget("K", 8)),
+            )
 
         loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
 
@@ -393,6 +427,7 @@ rule lantern_prediction:
                     cuda=CUDA,
                     size=dsget("lantern/prediction/size", default=32),
                     pbar=dsget("lantern/prediction/pbar", default=True),
+                    uncertainty=True,
                 ),
             )
 
@@ -661,7 +696,7 @@ rule lantern_affine:
         time = "24:00:00",
     run:
         from src import affine
-        
+
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
@@ -877,7 +912,7 @@ rule lantern_affine:
         )
 
         ploss = loss
-        
+
         ##############################################################################
 
         loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)

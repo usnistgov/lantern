@@ -86,7 +86,7 @@ def predictions(
                 tmp = torch.zeros(Nsamp, *_y.shape)
                 model.train()
                 for n in range(Nsamp):
-                    f, _ = model(_x)
+                    f = model(_x)
                     samp = f.sample()
                     if samp.ndim == 1:
                         samp = samp[:, None]

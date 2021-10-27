@@ -26,14 +26,16 @@ rule simulate_landscape:
         mrate = dsget("mutation_rate", None)
         sigmay = dsget("sigma_y", None)
 
-        tokens = [str(n).zfill(p // 10) for n in range(p)]
+        tokens = [str(n).zfill(int(np.floor(np.log10(p)))) for n in range(p)]
         assert len(set(tokens)) == p
 
         # simulate effects
         # generate a sequence of variances with expected decay
-        pg = gamma(1, scale=1)
-        sigma = pg.rvs(K).cumprod()
-        W = (torch.randn(p, K) * torch.tensor(sigma[None, :])).float()
+        # eta = 5
+        # pg = gamma(eta, scale=1/eta)
+        # sigma = pg.rvs(K).cumprod()
+        # W = (torch.randn(p, K) * torch.tensor(sigma[None, :])).float()
+        W = torch.randn(p, K) * 5
 
         # simulate variants
         variants = [""]  # alway see wildtype
@@ -52,6 +54,9 @@ rule simulate_landscape:
 
         # GP
         kernel = RQKernel()
+        kernel.lengthscale = 1.0
+        kernel.alpha = 1.0
+
         Kz = kernel(Z)
         Ky = Kz.evaluate() + torch.eye(N) * sigmay
 

@@ -1,6 +1,9 @@
 gfp:
   label: avGFP
   N: 45000
+
+  phenotype_labels:
+    - "brightness"
   
   phenotypes:
     brightness: ["phenotype"]
@@ -36,6 +39,10 @@ gfp:
 laci:
   label: LacI
   N: 40000
+  
+  phenotype_labels:
+    - "$\\mathrm{EC}_{50}$"
+    - "$\\mathrm{G}_{\\infty}$"
   
   phenotypes:
     joint: ["ec50-norm", "ginf-norm"]
@@ -76,6 +83,10 @@ covid:
   label: SARS-CoV-2
   substitutions: aa_substitutions
   
+  phenotype_labels:
+    - "RBD $\\Delta \\log$MFI"
+    - "RBD-ACE2 $\\log_{10} K_d$"
+  
   phenotypes:
     joint: ["func_score_norm_exp", "func_score_norm_bind"]
     exp: ["func_score_norm_exp"]
@@ -97,31 +108,38 @@ covid:
 simulations:
   K1:
     K: 1
-    p: 20
-    N: 500
-    mutation_rate: 0.05
-    sigma_y: 0.05
+    p: 300
+    N: 10000
+    mutation_rate: 0.01
+    sigma_y: 0.01
 
   K2:
     K: 2
-    p: 20
-    N: 500
-    mutation_rate: 0.05
-    sigma_y: 0.05
+    p: 300
+    N: 10000
+    mutation_rate: 0.01
+    sigma_y: 0.01
 
   K4:
     K: 4
-    p: 40
-    N: 1000
-    mutation_rate: 0.05
-    sigma_y: 0.05
+    p: 300
+    N: 20000
+    mutation_rate: 0.01
+    sigma_y: 0.01
+
+  K6:
+    K: 6
+    p: 300
+    N: 20000
+    mutation_rate: 0.01
+    sigma_y: 0.01
 
   K8:
     K: 8
-    p: 40
-    N: 1000
-    mutation_rate: 0.05
-    sigma_y: 0.05
+    p: 300
+    N: 20000
+    mutation_rate: 0.01
+    sigma_y: 0.01
 
 figures:
   surface:

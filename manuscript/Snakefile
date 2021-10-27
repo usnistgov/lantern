@@ -39,6 +39,7 @@ include: "smk/linear.smk"
 include: "smk/globalep.smk"
 include: "smk/allostery.smk"
 include: "smk/simulate.smk"
+include: "smk/specific.smk"
 
 include: "smk/figures/cvr2.smk"
 include: "smk/figures/calibration.smk"
@@ -203,6 +204,20 @@ rule exp_figures:
             r = range(1, 3),
         ),
         expand(
+            "figures/{dstarg}/{fig}-kern-{k}.png",
+            dstarg=[
+                "laci-joint/ec50",
+                "laci-joint/ginf",
+                "covid-joint/exp",
+                "covid-joint/bind",
+                "gfp-brightness/brightness",
+            ],
+            fig=[
+                "surface",
+            ],
+            k = ["rbf", "matern", "rq"]
+        ),
+        expand(
             "figures/{dstarg}/{fig}-r{r}.png",
             dstarg=[
                 "laci-joint",
@@ -254,7 +269,12 @@ rule exp_figures:
         expand(
             "figures/{dataset}/{fig}.png",
             dataset=["laci-joint", "covid-joint", "gfp-brightness"],
-            fig = ["anglehist", "effects-sparsity", "effects-pairplot"]
+            fig=[
+                "anglehist",
+                "effects-sparsity",
+                "effects-significance-count",
+                "effects-pairplot",
+            ],
         ),
         expand(
             "figures/sim{dataset}-phenotype/{fig}.png",
@@ -278,6 +298,7 @@ rule exp_figures:
         "figures/covid-joint/parametric.png",
         "figures/covid-joint/variants.png",
         "figures/covid-joint/variants_project.png",
+        "figures/dimensions.png",
     shell:
         "tar -czf figures.tar.gz figures/*"
 

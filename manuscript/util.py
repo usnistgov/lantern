@@ -5,22 +5,50 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib import ticker
+from gpytorch.kernels import RBFKernel, MaternKernel, ScaleKernel, RQKernel
 
 from lantern.model import Model
 from lantern.model.basis import VariationalBasis
 from lantern.model.surface import Phenotype
 
 
-def load_run(dataset, phenotype, model, run, K=8, slug=""):
+def load_run(dataset, phenotype, model, run, K=8, slug="", kernel=""):
     df = pd.read_csv(f"data/processed/{dataset}.csv")
     ds = pickle.load(open(f"data/processed/{dataset}-{phenotype}.pkl", "rb"))
 
+    _kernel = None
+    if kernel != "":
+        D = ds.D
+        # hard-coded if non-rq kernel
+        K = 4
+
+        baseKern = {"rbf": RBFKernel, "matern": MaternKernel, "rq": RQKernel}[
+            kernel.split("-")[-1]
+        ]
+
+        # base component
+        if D > 1:
+            _kernel = baseKern(ard_num_dims=K, batch_shape=torch.Size([D]))
+        else:
+            _kernel = baseKern(ard_num_dims=K)
+        if _kernel.has_lengthscale:
+            _kernel.raw_lengthscale.requires_grad = False
+
+        # scale component
+        if D > 1:
+            _kernel = ScaleKernel(_kernel, batch_shape=torch.Size([D]))
+        else:
+            _kernel = ScaleKernel(_kernel)
+
     # Build model and loss
-    _model = Model(VariationalBasis.fromDataset(ds, K), Phenotype.fromDataset(ds, K),)
+    _model = Model(
+        VariationalBasis.fromDataset(ds, K),
+        Phenotype.fromDataset(ds, K, kernel=_kernel),
+    )
 
     _model.load_state_dict(
         torch.load(
-            f"experiments/{dataset}-{phenotype}/{model}/{run}{slug}/model.pt", "cpu"
+            f"experiments/{dataset}-{phenotype}/{model}/{run}{slug}/model.pt", "cpu",
         )
     )
 

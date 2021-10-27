@@ -396,6 +396,66 @@ rule gfp_surface_bfp_all:
         plt.savefig(output[0], bbox_inches="tight")
 
 
+rule gfp_effects_cutoff:
+    input:
+        "data/processed/gfp.csv",
+        "data/processed/gfp-brightness.pkl",
+        "experiments/gfp-brightness/lantern/full/model.pt"
+    output:
+        "figures/gfp-brightness/effects-cutoff.png"
+    group: "figure"
+    run:
+        from scipy.stats import norm
+        
+        df, ds, model = util.load_run("gfp", "brightness", "lantern", "full", 8)
+        model.eval()
+
+        qW = norm(
+            model.basis.W_mu[:, model.basis.order[0]].detach().numpy(),
+            model.basis.W_log_sigma[:, model.basis.order[0]].detach().exp().numpy(),
+        )
+
+        lo = qW.ppf(0.025)
+        hi = qW.ppf(0.975)
+        mu = qW.mean()
+
+        # ind = [68, 595, 1108, 1845, 1005, 786, 219, 396]
+        ind = [68, 595, 1108, 219]
+
+        _, ax = plt.subplots(figsize=(4, 2))
+
+        delta = 1.0
+        offset = delta/2
+        for ii, i in enumerate(ind):
+            plt.plot([lo[i], hi[i]], [offset]*2, color=f"C{ii}")
+            plt.scatter([mu[i]], [offset], color=f"C{ii}", label=ds.tokenizer.tokens[i][1:])
+
+            offset += delta
+
+        ax.spines.bottom.set_position("zero")
+        ax.spines.top.set_color("none")
+        ax.spines.left.set_position('zero')
+        ax.spines.right.set_color('none')
+        ax.xaxis.set_ticks_position("bottom")
+
+        ax.set_xlabel("$z_1$")
+        ax.xaxis.set_label_coords(-0.05, -0.025)
+
+        # ax.yaxis.set_ticks_position("left")
+        plt.yticks([])
+        # plt.xticks(range(len(features)), features, rotation=45, horizontalalignment="right")
+
+        # from here: https://www.py4u.net/discuss/139791
+        # plt.setp(ax.get_xticklabels(), transform=ax.get_xaxis_transform())
+
+        plt.grid(True, axis="x", ls="--")
+        fig = plt.gcf()
+        fig.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+
+        plt.tight_layout()
+        plt.savefig(output[0], bbox_inches="tight")
+
+
 rule laci_parametric:
     """
     Parametric plot of LacI allosteric surface
@@ -1391,3 +1451,56 @@ rule covid_axes_surface:
 
         # fig.colorbar(im, ax=ax, location="bottom", pad=0.2)
         # plt.savefig(output[2], bbox_inches="tight", transparent=False)
+
+rule covid_bind_surface_z2:
+    """
+    Covid axes surfaces
+    """
+
+    input:
+        "data/processed/covid.csv",
+        "data/processed/covid-joint.pkl",
+        "experiments/covid-joint/lantern/full/model.pt"
+    output:
+        "figures/covid-joint/surface-binding-z2.png",
+    group: "figure"
+    run:
+
+        df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)
+        model.eval()
+
+        X = ds[:len(ds)][0]
+        with torch.no_grad():
+            Z = model.basis(X)
+            Z = Z[:, model.basis.order]
+
+        Zpred = torch.zeros(100, 8)
+
+        rng = Z[:, 1].max() - Z[:, 1].min()
+        Zpred[:, model.basis.order[1]] = torch.linspace(-3, 3)
+
+        for z1 in [0, -2, -4, -6, -8, -10]:
+            Zpred[:, model.basis.order[0]] = z1
+
+            with torch.no_grad():
+                f = model.surface(Zpred)
+                lo, hi = f.confidence_region()
+
+            plt.plot(
+                Zpred[:, model.basis.order[1]].numpy(),
+                f.mean[:, 1].numpy(),
+                label=f"$z_1$ = {z1}",
+            )
+            plt.fill_between(
+                Zpred[:, model.basis.order[1]].numpy(),
+                lo[:, 1].numpy(),
+                hi[:, 1].numpy(),
+                alpha=0.4,
+            )
+
+        plt.xlabel("$z_2$")
+        plt.ylabel("SARS-CoV-2 binding (normalized)")
+        plt.legend()
+
+        plt.tight_layout()
+        plt.savefig(output[0], bbox_inches="tight", transparent=False)
