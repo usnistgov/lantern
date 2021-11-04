@@ -77,7 +77,7 @@ rule nn_depth:
             + stat_summary()
             + stat_summary(geom=geom_line)
             + ylab("$R^2$")
-            + xlab("NN width")
+            + xlab("NN depth")
             + theme_matplotlib()
             + theme(figure_size=(2, 2), dpi=300)
             + scale_x_continuous(breaks=[1, 2, 3], minor_breaks=[])

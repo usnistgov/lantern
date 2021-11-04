@@ -192,12 +192,16 @@ rule calibration_interval_diagnostic:
             D, input.predictions[0], noises[0]
         )
 
-        plt.figure(figsize=(6, 4), dpi=200)
+        fig = plt.figure(figsize=(3*D, 6), dpi=200,)
+        axes = []
+        maps = []
         for d in range(D):
 
             # balanced sampling
-            plt.subplot(2, 2, 2*d + 1)
-            ind, yweight = src.calibration.balanced_sample(df[f"y{d}"])
+            ax = plt.subplot(2, 2, d + 3)
+            # ax = plt.subplot(2, 2, d + 1)
+            axes.append(ax)
+            ind, yweight, ycount = src.calibration.balanced_sample(df[f"y{d}"])
 
             # values
             y = df[f"y{d}"].values[ind]
@@ -205,11 +209,13 @@ rule calibration_interval_diagnostic:
             yrange = ypred.std()[ind, d] * 2
 
             # colros
-            norm = mpl.colors.Normalize(
-                vmin=(1-yweight[ind]).min(), vmax=(1-yweight[ind]).max(), clip=True
+            norm = mpl.colors.LogNorm(
+                # vmin=(1-yweight[ind]).min(), vmax=(1-yweight[ind]).max(), clip=True
+                vmin=1, vmax=ycount.max(), clip=True
             )
             mapper = mpl.cm.ScalarMappable(norm=norm, cmap="viridis")
-            color = np.array([(mapper.to_rgba(v)) for v in 1 - yweight[ind]])
+            color = np.array([(mapper.to_rgba(v)) for v in ycount[ind]])
+            maps.append(mapper)
 
             # plot comparison to observed and predictive interval
             for i in range(y.shape[0]):
@@ -217,12 +223,15 @@ rule calibration_interval_diagnostic:
                     y[i], ymu[i], yrange[i], ls="None", marker="o", color=color[i, :]
                 )
 
-            mn = min(y.min(), ymu.min())
-            mx = max(y.max(), ymu.max())
-            plt.plot([mn, mx], [mn, mx], c="r")
+            mn = df[f"y{d}"].min()
+            mx = df[f"y{d}"].max()
+            rng = mx - mn
+            plt.plot([mn - 0.1*rng, mx + 0.1*rng], [mn - 0.1*rng, mx + 0.1*rng], c="r")
 
             # unbalanced sampling
-            plt.subplot(2, 2, 2*d + 2)
+            # ax = plt.subplot(2, 2, d + 3)
+            ax = plt.subplot(2, 2, d + 1)
+            axes.append(ax)
             ind = np.random.choice(np.arange(df.shape[0]), 100, replace=False)
 
             # values
@@ -231,11 +240,13 @@ rule calibration_interval_diagnostic:
             yrange = ypred.std()[ind, d] * 2
 
             # colros
-            norm = mpl.colors.Normalize(
-                vmin=(1-yweight[ind]).min(), vmax=(1-yweight[ind]).max(), clip=True
+            norm = mpl.colors.LogNorm(
+                # vmin=(1-yweight[ind]).min(), vmax=(1-yweight[ind]).max(), clip=True
+                vmin=1, vmax=ycount.max(), clip=True
             )
             mapper = mpl.cm.ScalarMappable(norm=norm, cmap="viridis")
-            color = np.array([(mapper.to_rgba(v)) for v in 1 - yweight[ind]])
+            color = np.array([(mapper.to_rgba(v)) for v in ycount[ind]])
+            maps.append(mapper)
 
             # plot comparison to observed and predictive interval
             for i in range(y.shape[0]):
@@ -243,9 +254,23 @@ rule calibration_interval_diagnostic:
                     y[i], ymu[i], yrange[i], ls="None", marker="o", color=color[i, :]
                 )
 
-            mn = min(y.min(), ymu.min())
-            mx = max(y.max(), ymu.max())
-            plt.plot([mn, mx], [mn, mx], c="r")
+            mn = df[f"y{d}"].min()
+            mx = df[f"y{d}"].max()
+            rng = mx - mn
+            plt.plot([mn - 0.1*rng, mx + 0.1*rng], [mn - 0.1*rng, mx + 0.1*rng], c="r")
 
-        plt.tight_layout()
+        for d in range(D):
+            cb = fig.colorbar(
+                maps[d * 2],
+                ax=[axes[2 * d], axes[2 * d + 1]],
+                location="bottom",
+                pad=0.125,
+                label="# of similar phenotypes"
+            )
+
+        # fig.colorbar(maps[1], ax=[axes[2], axes[3]], location="bottom", pad=0.3)
+        # fig.axes[-1].set_title(cbar_title, y=1.04, loc="left", ha="left")
+
+        # plt.tight_layout()
+        # plt.subplots_adjust(hspace=0.2)
         plt.savefig(output[0], bbox_inches="tight")

@@ -135,3 +135,127 @@ rule surface:
             fig.axes[-1].set_title(cbar_title, y=1.04, loc="left", ha="left")
 
         plt.savefig(output[0], bbox_inches="tight", verbose=False)
+
+rule surface_slice:
+    """
+    Surface plot of lantern model.
+    """
+
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/lantern/full{rerun}{kernel}/model.pt"
+    output:
+        "figures/{ds}-{phenotype}/{target}/surface-slice-z{k}{rerun,(-r.*)?}{kernel,(-kern-.*)?}.png"
+    group: "figure"
+    run:
+
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+
+        alpha = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha",
+            default=0.01,
+        )
+        raw = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/raw",
+            default=None,
+        )
+        log = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/log",
+            default=False,
+        )
+        p = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/p",
+            default=0,
+        )
+        image = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/image",
+            default=False,
+        )
+        scatter = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/scatter",
+            default=True,
+        )
+        mask = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/mask",
+            default=False,
+        )
+        cbar_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_kwargs",
+            default={},
+        )
+        fig_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/fig_kwargs",
+            default=dict(dpi=300, figsize=(4, 3)),
+        )
+        cbar_title = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_title",
+            default=None,
+        )
+        plot_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/plot_kwargs",
+            default={},
+        )
+
+        df, ds, model = util.load_run(
+            wildcards.ds,
+            wildcards.phenotype,
+            "lantern",
+            "full",
+            dsget("K", 8),
+            slug=wildcards.rerun+wildcards.kernel,
+            kernel=wildcards.kernel
+        )
+        model.eval()
+
+        K = int(wildcards.k) - 1
+
+        X = ds[:len(ds)][0]
+        with torch.no_grad():
+            Z = model.basis(X)
+            Z = Z[:, model.basis.order]
+
+        Zpred = torch.zeros(100, 8)
+
+        Zpred[:, model.basis.order[K]] = torch.linspace(
+            torch.quantile(Z[:, K], 0.1), torch.quantile(Z[:, K], 0.9)
+        )
+
+        for z1 in torch.linspace(torch.quantile(Z[:, 0], 0.1), torch.quantile(Z[:, 0], 0.9), 10):
+            Zpred[:, model.basis.order[0]] = z1
+
+            with torch.no_grad():
+                f = model.surface(Zpred)
+                lo, hi = f.confidence_region()
+
+            plt.plot(
+                Zpred[:, model.basis.order[K]].numpy(),
+                f.mean[:, p].numpy() if f.mean.ndim > 1 else f.mean.numpy(),
+                label=f"$z_1$ = {z1:0.3f}",
+            )
+            plt.fill_between(
+                Zpred[:, model.basis.order[K]].numpy(),
+                lo[:, p].numpy() if lo.ndim> 1 else lo.numpy(),
+                hi[:, p].numpy() if hi.ndim> 1 else hi.numpy(),
+                alpha=0.4,
+            )
+
+        plt.xlabel(f"$z_{K+1}$")
+        plt.ylabel(config[wildcards.ds]["phenotype_labels"][p])
+        plt.legend()
+
+        plt.tight_layout()
+        plt.savefig(output[0], bbox_inches="tight", transparent=False)

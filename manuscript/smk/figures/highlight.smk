@@ -1452,9 +1452,9 @@ rule covid_axes_surface:
         # fig.colorbar(im, ax=ax, location="bottom", pad=0.2)
         # plt.savefig(output[2], bbox_inches="tight", transparent=False)
 
-rule covid_bind_surface_z2:
+rule covid_bind_surface_zk:
     """
-    Covid axes surfaces
+    Covid axes surfaces slice
     """
 
     input:
@@ -1462,12 +1462,14 @@ rule covid_bind_surface_z2:
         "data/processed/covid-joint.pkl",
         "experiments/covid-joint/lantern/full/model.pt"
     output:
-        "figures/covid-joint/surface-binding-z2.png",
+        "figures/covid-joint/surface-binding-z{k}.png",
     group: "figure"
     run:
 
         df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)
         model.eval()
+
+        K = int(wildcards.k) - 1
 
         X = ds[:len(ds)][0]
         with torch.no_grad():
@@ -1476,8 +1478,8 @@ rule covid_bind_surface_z2:
 
         Zpred = torch.zeros(100, 8)
 
-        rng = Z[:, 1].max() - Z[:, 1].min()
-        Zpred[:, model.basis.order[1]] = torch.linspace(-3, 3)
+        rng = Z[:, K].max() - Z[:, K].min()
+        Zpred[:, model.basis.order[K]] = torch.linspace(-3, 3)
 
         for z1 in [0, -2, -4, -6, -8, -10]:
             Zpred[:, model.basis.order[0]] = z1
@@ -1487,18 +1489,18 @@ rule covid_bind_surface_z2:
                 lo, hi = f.confidence_region()
 
             plt.plot(
-                Zpred[:, model.basis.order[1]].numpy(),
+                Zpred[:, model.basis.order[K]].numpy(),
                 f.mean[:, 1].numpy(),
                 label=f"$z_1$ = {z1}",
             )
             plt.fill_between(
-                Zpred[:, model.basis.order[1]].numpy(),
+                Zpred[:, model.basis.order[K]].numpy(),
                 lo[:, 1].numpy(),
                 hi[:, 1].numpy(),
                 alpha=0.4,
             )
 
-        plt.xlabel("$z_2$")
+        plt.xlabel(f"$z_{K+1}$")
         plt.ylabel("SARS-CoV-2 binding (normalized)")
         plt.legend()
 

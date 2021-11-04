@@ -65,7 +65,7 @@ def balanced_sample(y, N=100, bins=100):
     h, bins = np.histogram(y, bins)
 
     # probability of choosing a bin
-    weight = np.nan_to_num(1 / h, posinf=0)
+    weight = np.nan_to_num(1 / np.copy(h), posinf=0)
     weight = weight / weight.sum()
 
     # bin assignment
@@ -78,4 +78,11 @@ def balanced_sample(y, N=100, bins=100):
     yweight = weight[ybin]
     yweight = yweight / yweight.sum()
 
-    return np.random.choice(np.arange(y.shape[0]), N, replace=False, p=yweight), yweight
+    # counts
+    ycount = h[ybin]
+
+    return (
+        np.random.choice(np.arange(y.shape[0]), N, replace=False, p=yweight),
+        yweight,
+        ycount,
+    )

@@ -109,36 +109,40 @@ simulations:
   K1:
     K: 1
     p: 300
-    N: 10000
-    mutation_rate: 0.01
+    N: 50000
+    mutation_rate: 0.03
     sigma_y: 0.01
 
   K2:
     K: 2
-    p: 300
-    N: 10000
-    mutation_rate: 0.01
+    p: 100
+    N: 50000
+    mutation_rate: 0.03
     sigma_y: 0.01
+    lantern:
+      epochs: 5000
 
   K4:
     K: 4
-    p: 300
-    N: 20000
+    p: 100
+    N: 10000
     mutation_rate: 0.01
     sigma_y: 0.01
 
   K6:
     K: 6
-    p: 300
-    N: 20000
-    mutation_rate: 0.01
+    p: 100
+    N: 100000
+    mutation_rate: 0.03
     sigma_y: 0.01
+    lantern:
+      epochs: 2000
 
   K8:
     K: 8
-    p: 300
-    N: 20000
-    mutation_rate: 0.01
+    p: 100
+    N: 100000
+    mutation_rate: 0.03
     sigma_y: 0.01
 
 figures:
