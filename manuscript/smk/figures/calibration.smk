@@ -98,23 +98,6 @@ rule calibration_interval:
             # get to right shape
             weights = weights.repeat(crits.shape[0], axis=1)
 
-            # print("first")
-            # print(
-            #     (
-            #         tmp[
-            #             [
-            #                 f"y{d}-interval{cc}"
-            #                 for d in range(D)
-            #                 for (cc, _) in enumerate(crits)
-            #             ]
-            #         ]
-            #         * weights
-            #     )
-            #     .div(weights.sum(axis=0))
-            #     .sum(axis=0)
-            # )
-            # print("second")
-
             # take average of coverage
             tmp = (
                 (

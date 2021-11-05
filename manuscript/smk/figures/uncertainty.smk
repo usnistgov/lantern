@@ -10,10 +10,42 @@ rule uncertainty:
         "figures/rmse-vs-dist.png",
         "figures/uncertainty-vs-rmse.png",
     run:
-        def loadWithDist(pth, col):
+        def loadWithDist(pth, col, sigmay=None):
             df = pd.read_csv(pth)
             df["distance"] = df[col].replace(np.nan, "").str.split(":").apply(len)
+
+            # add observation uncertainty
+            if sigmay is not None:
+                for d in range(len(sigmay)):
+                    # print(sigmay[d])
+                    df[f"yhat_std{d}"] = np.sqrt(df[f"yhat_std{d}"]**2 + sigmay[d])
+
             return df
+
+        # load noise values
+        noise = {}
+        for _ds, _phen in [("laci", "joint"), ("gfp", "brightness"), ("covid", "joint")]:
+            df, ds, model = util.load_run(_ds, _phen, "lantern", "full", 8,)
+            loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
+            D = len(get(config, f"{_ds}/phenotypes/{_phen}"))
+            phenotypes = get(config, f"{_ds}/phenotype_labels")
+
+            tmp = []
+            with torch.no_grad():
+                for pt in [
+                    f"experiments/{_ds}-{_phen}/lantern/cv{c}/loss.pt"
+                    for c in range(10)
+                ]:
+                    loss.load_state_dict(torch.load(pt, "cpu"))
+                    likelihood = loss.losses[1].mll.likelihood
+
+                    if hasattr(likelihood, "task_noises"):
+                        tmp.append((likelihood.noise + likelihood.task_noises).numpy())
+                    else:
+                        tmp.append(likelihood.noise.numpy())
+
+            noise[_ds] = tmp
+
 
         uncertainty = pd.concat(
             [
@@ -21,6 +53,7 @@ rule uncertainty:
                     loadWithDist(
                         f"experiments/laci-joint/lantern/cv{c}/pred-val.csv",
                         "substitutions",
+                        # noise["laci"][c],
                     )
                     .rename(
                         columns={
@@ -41,6 +74,7 @@ rule uncertainty:
                     loadWithDist(
                         f"experiments/gfp-brightness/lantern/cv{c}/pred-val.csv",
                         "aaMutations",
+                        # noise["gfp"][c],
                     )
                     .rename(
                         columns={
@@ -58,10 +92,14 @@ rule uncertainty:
             ]
             + [
                 pd.melt(
-                    pd.read_csv(f"experiments/covid-joint/lantern/cv{c}/pred-val.csv")
+                    loadWithDist(
+                        f"experiments/covid-joint/lantern/cv{c}/pred-val.csv",
+                        "aa_substitutions",
+                        # noise["covid"][c],
+                    )
                     .rename(
                         columns={
-                            "n_aa_substitutions": "distance",
+                            # "n_aa_substitutions": "distance",
                             "yhat_std0": "SARS-Cov2 expression",
                             "yhat_std1": "SARS-Cov2 binding",
                         }

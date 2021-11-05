@@ -2,14 +2,16 @@ rule allostery_sim:
     input:
         "data/raw/laci.hdf"
     output:
-        "data/allostery/d{D}/mutations.csv",
-        "data/allostery/d{D}/data.csv"
+        "data/processed/allostery{D}-mutations.csv",
+        "data/processed/allostery{D}.csv"
     run:
         import pandas as pd
         import numpy as np
         from tqdm import tqdm
 
-        rng = np.random.default_rng({1: 2, 2: 4, 3: 5}[int(wildcards.D)])
+        from src.allostery import g0, ec50, ginf, delta_eps_AI_0, delta_eps_RA_0, K_A_0
+
+        rng = np.random.default_rng({1: 2, 2: 4, 3: 4}[int(wildcards.D)])
         num_posiitons = 300
         pos_mean_effect = 1.5 * rng.standard_normal(num_posiitons)
         position = np.array(
@@ -57,8 +59,8 @@ rule allostery_sim:
         shift_frame.to_csv(output[0])
 
         # Randomly simuilate 100,000 variants, with different mutational distances
-        num_variants = 1000
-        rng = np.random.default_rng({1: 2, 2: 5}[int(wildcards.D)])
+        num_variants = 100000
+        rng = np.random.default_rng({1: 2, 2: 5, 3: 5}[int(wildcards.D)])
         df = pd.read_hdf(input[0])
         df = df[df.lacI_amino_mutations >= 0]
         df = df[df.lacI_amino_mutations < 15]
@@ -66,14 +68,14 @@ rule allostery_sim:
         variant_frame_1 = pd.DataFrame({"num_mutations": num_mutations})
 
         # build dataset
-        rng = np.random.default_rng({1: 3, 2: 3}[int(wildcards.D)])
+        rng = np.random.default_rng({1: 3, 2: 3, 3:10}[int(wildcards.D)])
 
         position_list = np.unique(shift_frame.position)
         substitution_list = np.unique(shift_frame.substitution)
         var_eps_AI_list = []
-        var_list = [[]]*int(wildcards.D)
+        var_list = [[] for _ in range(int(wildcards.D))]
         mutation_codes = []
-        effects = ["eps_AI_shift", "eps_RA_shift"][:int(wildcards.D)]
+        effects = ["eps_AI_shift", "eps_RA_shift", "log_KA_shift"][:int(wildcards.D)]
         for n in tqdm(variant_frame_1.num_mutations):
             pos_list = np.sort(rng.choice(position_list, size=n, replace=False))
             sub_list = rng.choice(substitution_list, size=n)
@@ -93,6 +95,7 @@ rule allostery_sim:
 
             for i in range(int(wildcards.D)):
                 var_list[i].append(shifts[i])
+                # print(i, len(var_list[0]), len(var_list[1]))
 
         variant_frame_1["mutation_codes"] = mutation_codes
         #variant_frame_1["eps_AI_shift"] = var_eps_AI_list
@@ -113,19 +116,32 @@ rule allostery_sim:
             if int(wildcards.D) > 1:
                 kwargs["delta_eps_RA"] = variant_frame_1.eps_RA_shift + delta_eps_RA_0
 
+            if int(wildcards.D) > 2:
+                kwargs["K_A"] = K_A_0 * np.exp(variant_frame_1.log_KA_shift * 0.1)
+
             tmp = []
             for n in range(num_variants):
                 kkwargs = {}
                 for k, v in kwargs.items():
                     kkwargs[k] = v.values[n]
-                    print(kkwargs)
-                    break
                     
-                tmp.append(np.log10(fun(**kwargs)))
-                break
+                tmp.append(np.log10(fun(**kkwargs)))
 
             variant_frame_1[par] = tmp
-            break
+
+        variant_frame_1["substitutions"] = variant_frame_1.mutation_codes.apply(
+            lambda s: ":".join(s)
+        )
+
+        for c in ["log_g0", "log_ginf", "log_ec50"]:
+            std = variant_frame_1[c].std()
+
+            for scale in [0.01, 0.025, 0.05, 0.1]:
+                variant_frame_1[f"{c}_noise{scale}"] = variant_frame_1[c] + np.random.normal(
+                    scale=std * scale, size=len(variant_frame_1)
+                )
+
+        variant_frame_1.to_csv(output[1])
 
 rule allostery:
     input:

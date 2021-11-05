@@ -194,6 +194,24 @@ rule exp_figures:
             ],
         ),
         expand(
+            "figures/{dstarg}/{fig}.png",
+            dstarg=[
+                "allostery1-joint/log_ec50",
+                "allostery2-joint/log_ec50",
+                "allostery3-joint/log_ec50",
+            ],
+            fig=[
+                "surface",
+                # "gradient",
+                # "robustness",
+                # "robustness-distance",
+                # "laplacian",
+                # "additivity",
+                # "additivity-distance",
+                # "diffops-distance",
+            ],
+        ),
+        expand(
             "figures/{dstarg}/{fig}-r{r}.png",
             dstarg=[
                 "laci-joint/ec50",
@@ -303,11 +321,11 @@ rule exp_figures:
                 "effects-pairplot",
             ],
         ),
-        expand(
-            "figures/sim{dataset}-phenotype/{fig}.png",
-            dataset=["K1", "K2", "K4", "K6", "K8"],
-            fig = ["dimensions"]
-        ),
+        # expand(
+        #     "figures/sim{dataset}-phenotype/{fig}.png",
+        #     dataset=["K1", "K2", "K4", "K6", "K8"],
+        #     fig = ["dimensions"]
+        # ),
         expand(
             "figures/{dataset}/affine-{fig}.png",
             fig = ["history", "effects"],
