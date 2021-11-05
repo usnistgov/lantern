@@ -192,13 +192,14 @@ rule calibration_interval_diagnostic:
             D, input.predictions[0], noises[0]
         )
 
-        fig = plt.figure(figsize=(3*D, 6), dpi=200,)
+        fig = plt.figure(figsize=(3*D, 6), dpi=300,)
+
         axes = []
         maps = []
         for d in range(D):
 
             # balanced sampling
-            ax = plt.subplot(2, 2, d + 3)
+            ax = plt.subplot(2, D, d+D+1)
             # ax = plt.subplot(2, 2, d + 1)
             axes.append(ax)
             ind, yweight, ycount = src.calibration.balanced_sample(df[f"y{d}"])
@@ -227,10 +228,15 @@ rule calibration_interval_diagnostic:
             mx = df[f"y{d}"].max()
             rng = mx - mn
             plt.plot([mn - 0.1*rng, mx + 0.1*rng], [mn - 0.1*rng, mx + 0.1*rng], c="r")
+            if d == 0:
+                plt.ylabel("predicted")
+            plt.xlabel("observed")
 
             # unbalanced sampling
             # ax = plt.subplot(2, 2, d + 3)
-            ax = plt.subplot(2, 2, d + 1)
+            # ax = plt.subplot(2, 2, d + 1)
+            ax = plt.subplot(2, D, d + 1)
+
             axes.append(ax)
             ind = np.random.choice(np.arange(df.shape[0]), 100, replace=False)
 
@@ -258,6 +264,9 @@ rule calibration_interval_diagnostic:
             mx = df[f"y{d}"].max()
             rng = mx - mn
             plt.plot([mn - 0.1*rng, mx + 0.1*rng], [mn - 0.1*rng, mx + 0.1*rng], c="r")
+            if d == 0:
+                plt.ylabel("predicted")
+
 
         for d in range(D):
             cb = fig.colorbar(

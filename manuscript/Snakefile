@@ -59,6 +59,7 @@ include: "smk/figures/hyperparams.smk"
 include: "smk/figures/effects.smk"
 include: "smk/figures/affine.smk"
 include: "smk/figures/sparse.smk"
+include: "smk/figures/uncertainty.smk"
 
 rule data:
     input:
