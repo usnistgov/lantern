@@ -119,6 +119,9 @@ rule allostery_sim:
             if int(wildcards.D) > 2:
                 kwargs["K_A"] = K_A_0 * np.exp(variant_frame_1.log_KA_shift * 0.1)
 
+            if int(wildcards.D) > 3:
+                kwargs["K_I"] = K_I_0 * np.exp(variant_frame_1.log_KI_shift * 0.1)
+
             tmp = []
             for n in range(num_variants):
                 kkwargs = {}
@@ -146,3 +149,38 @@ rule allostery_sim:
 rule allostery:
     input:
         expand("data/allostery/d{D}/data.csv", D=range(1, 2))
+
+rule allostery_effect_crossplot:
+    input:
+        "data/processed/allostery{D}-mutations.csv",
+        "data/processed/allostery{D}.csv",
+        "experiments/allostery{D}-{phen}/lantern/full/model.pt",
+    output:
+        "figures/allostery{D}-{phen}/effects-crossplot.png"
+    run:
+        import pandas as pd
+        import util
+
+        df, ds, model = util.load_run(f"allostery{wildcards.D}", wildcards.phen, "lantern", "full", 8)
+
+        W = pd.read_csv(f"data/processed/allostery{wildcards.D}-mutations.csv")
+        effects = W.columns[-int(wildcards.D):]
+        print(effects)
+        W["token"] = W.position.astype(str) + W.substitution
+
+        What = pd.DataFrame(
+            {"token": ds.tokenizer.tokens}
+        )
+        Wmu = model.basis.W_mu.detach().numpy()
+        for i, ii in enumerate(model.basis.order):
+            What[f"z{i+1}"] = Wmu[:, ii]
+
+        mrg = pd.merge(W, What, on="token")
+
+        plt.figure(figsize=(16, 2*int(wildcards.D)))
+        for d in range(int(wildcards.D)):
+            for z in range(8):
+                plt.subplot(int(wildcards.D), 8, d*8 + z + 1)
+                plt.hist2d(mrg[effects[d]], mrg[f"z{z+1}"], norm=mpl.colors.LogNorm(), bins=30)
+        plt.tight_layout()
+        plt.savefig(output[0])

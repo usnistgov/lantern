@@ -162,9 +162,9 @@ rule dimensions_sim:
 
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
-            return get(config, f"simulations/{wildcards.ds}/{pth}", default=default)
+            return get(config, f"sim{wildcards.ds}/{pth}", default=default)
 
-        df, ds, model = util.load_run(ds, phenotype, "lantern", "full", 8)
+        df, ds, model = util.load_run(ds, phenotype, "lantern", "full", dsget("K", 8))
         model.eval()
 
         X = ds[:len(ds)][0]
@@ -173,7 +173,7 @@ rule dimensions_sim:
             mu = (model.basis.log_beta.exp()) / (model.basis.log_alpha.exp() - 1)
             mu = mu[model.basis.order]
 
-        plt.plot(np.arange(1, 9), mu, marker="o", label=lab, zorder=10)
+        plt.plot(np.arange(1, mu.shape[0]+1), mu, marker="o", label=lab, zorder=10)
 
         mn = min(mn, mu.min())
         mx = max(mx, mu.max())
@@ -244,4 +244,196 @@ rule dimensions_count_diagnostic:
         plt.ylabel("count")
         plt.xlabel("Significance level")
 
+        plt.savefig(output[0], bbox_inches="tight", verbose=False)
+
+rule dimensions_fold_change:
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/lantern/full/model.pt"
+    group: "figure"
+    output:
+        "figures/{ds}-{phenotype}/dimensions_fold_change.png"
+    group: "figure"
+    run:
+
+        import seaborn as sns
+
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+        
+        def fget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(
+                config,
+                f"figures/effects/{wildcards.ds}-{wildcards.phenotype}/{pth}",
+                default=default,
+            )
+        from scipy.stats import norm
+
+        K = dsget("K", 8)
+
+        df, ds, model = util.load_run(
+            wildcards.ds, wildcards.phenotype, "lantern", "full", K
+        )
+
+        qalpha = model.basis.qalpha(detach=True)
+        sigma = 1/qalpha.mean[model.basis.order]
+        fold = (sigma[:-1] / sigma[1:]).numpy()[::-1]
+        thresh = 1
+        select = (np.where(np.log10(fold) > thresh)[0]).min()
+
+
+        plt.figure(figsize=(3, 2), dpi=300)
+        plt.plot(fold, marker="o")
+        plt.scatter(range(select, K-1), fold[select:], facecolors="none", s=100, edgecolors="C0")
+        plt.xticks(range(K-1), [f"z{K-k-1}" for k in range(K-1)])
+        plt.ylabel("fold-change")
+        plt.axhline(10**thresh, c="r", ls="--")
+
+        plt.semilogy()
+        plt.savefig(output[0], bbox_inches="tight", verbose=False)
+
+rule dimensions_logprob:
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/lantern/full/model.pt",
+        "experiments/{ds}-{phenotype}/lantern/full/loss.pt",
+    output:
+        "figures/{ds}-{phenotype}/dimensions-logprob.png"
+    group: "figure"
+    resources:
+        gres="gpu:1"
+    run:
+
+        import seaborn as sns
+        from src import predict
+
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+        
+        def fget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(
+                config,
+                f"figures/dimensions/{wildcards.ds}-{wildcards.phenotype}/{pth}",
+                default=default,
+            )
+
+        from scipy.stats import norm
+
+        K = dsget("K", 8)
+        maxDist = fget("maxDist", None)
+
+        df, ds, model = util.load_run(
+            wildcards.ds, wildcards.phenotype, "lantern", "full", K
+        )
+
+        loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
+        loss.load_state_dict(torch.load(input[3]))
+
+        model.eval()
+        loss.eval()
+
+        lp = src.predict.logprob_scan(
+            ds.D,
+            K,
+            model,
+            loss.losses[1].mll.likelihood,
+            torch.utils.data.Subset(ds, np.where(df.distance <= maxDist)[0]) if maxDist is not None else ds,
+            # torch.utils.data.Subset(ds, np.where(df["ginf-norm"] >= -1)[0]),
+            pbar=True,
+            cuda=torch.cuda.is_available(),
+            size=1000,
+        )
+
+        useDims = fget("useDims", None)
+        if useDims is not None:
+            lp = lp.filter(regex=f"lp[{''.join(map(str, useDims))}].*")
+
+        mean = [
+            (
+                lp.filter(regex=f".*k{k+1}", axis=1).sum(axis=1)
+                - lp.filter(regex=f".*k{k}", axis=1).sum(axis=1)
+            ).mean()
+            for k in range(K)
+        ]
+        std = [
+            2*(
+                lp.filter(regex=f".*k{k+1}", axis=1).sum(axis=1)
+                - lp.filter(regex=f".*k{k}", axis=1).sum(axis=1)
+            ).std()
+            / (lp.shape[0] ** 0.5)
+            for k in range(K)
+        ]
+
+        fig, axes = plt.subplots(1, K, figsize=(K, 2))
+
+        for k in range(K):
+            axes[k].errorbar([0.05], mean[k], std[k], fmt=".", ecolor="k", markersize=10)
+            ymn, ymx = axes[k].get_ylim()
+            axes[k].set_ylim(min(0, ymn), max(ymx, 0)*1.2)
+            axes[k].set_title(f"$z_{k+1}$")
+            # axes[k].axhline(0, c="r")
+            axes[k].set_xlim(-0.001, 0.101)
+            axes[k].set_xticks([])
+            axes[k].tick_params(axis="x", which="both", bottom=False)
+            axes[k].spines.left.set_position('zero')
+            axes[k].spines.right.set_color('none')
+            axes[k].spines.bottom.set_position("zero")
+            axes[k].spines.top.set_color('none')
+            axes[k].xaxis.set_ticks_position('bottom')
+            axes[k].yaxis.set_ticks_position('left')
+
+        # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(3, 2))
+
+        # ax1.spines["bottom"].set_visible(False)
+        # ax1.tick_params(axis="x", which="both", bottom=False)
+        # ax2.spines["top"].set_visible(False)
+
+        # bs = max(mean[1:]) * 2
+        # ts = mean[0] * 0.9
+
+        # ymn, _ = ax2.get_ylim()
+        # print(ymn)
+        # ax2.set_ylim(-0.1, bs)
+        # ax1.set_ylim(ts, mean[0]*1.1)
+        # #ax1.set_yticks(np.arange(1000, 1501, 100))
+
+        # # bars1 = ax1.bar(np.arange(K), mean, yerr=std)
+        # # bars2 = ax2.bar(np.arange(K), mean, yerr=std)
+        # err1 = ax1.errorbar(np.arange(K), mean, yerr=std, fmt=".", ecolor="k")
+        # err2 = ax2.errorbar(np.arange(K), mean, yerr=std, fmt=".", ecolor="k")
+
+        # d = 0.015
+        # kwargs = dict(transform=ax1.transAxes, color="k", clip_on=False)
+        # ax1.plot((-d, +d), (-d, +d), **kwargs)
+        # ax1.plot((1 - d, 1 + d), (-d, +d), **kwargs)
+        # kwargs.update(transform=ax2.transAxes)
+        # ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)
+        # ax2.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
+
+        # # for b1, b2 in zip(bars1, bars2):
+        # #     posx = b2.get_x() + b2.get_width() / 2.0
+        # #     if b2.get_height() > bs:
+        # #         ax2.plot(
+        # #             (posx - 3 * d, posx + 3 * d),
+        # #             (1 - d, 1 + d),
+        # #             color="k",
+        # #             clip_on=False,
+        # #             transform=ax2.get_xaxis_transform(),
+        # #         )
+        # #     if b1.get_height() > ts:
+        # #         ax1.plot(
+        # #             (posx - 3 * d, posx + 3 * d),
+        # #             (-d, +d),
+        # #             color="k",
+        # #             clip_on=False,
+        # #             transform=ax1.get_xaxis_transform(),
+        # #         )
+
+        plt.tight_layout()
         plt.savefig(output[0], bbox_inches="tight", verbose=False)

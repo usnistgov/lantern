@@ -156,8 +156,8 @@ rule surface_slice:
 
         alpha = get(
             config,
-            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha",
-            default=0.01,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/slice-alpha",
+            default=0.2,
         )
         raw = get(
             config,
@@ -231,7 +231,14 @@ rule surface_slice:
         Zpred = torch.zeros(100, 8)
 
         Zpred[:, model.basis.order[K]] = torch.linspace(
-            torch.quantile(Z[:, K], 0.1), torch.quantile(Z[:, K], 0.9)
+            torch.quantile(Z[:, K], alpha/2), torch.quantile(Z[:, K], 1-alpha/2)
+        )
+        print(
+            alpha,
+            torch.quantile(Z[:, K], alpha / 2),
+            torch.quantile(Z[:, K], 1 - alpha / 2),
+            Z[:, K].min(),
+            Z[:, K].max(),
         )
 
         for z1 in torch.linspace(torch.quantile(Z[:, 0], 0.1), torch.quantile(Z[:, 0], 0.9), 10):
@@ -259,3 +266,69 @@ rule surface_slice:
 
         plt.tight_layout()
         plt.savefig(output[0], bbox_inches="tight", transparent=False)
+
+rule posterior_sample_surface:
+    """Sample from learned posterior parameters"""
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/lantern/full/model.pt"
+    output:
+        "figures/{ds}-{phenotype}/{target}/surface-sample.png"
+    group: "figure"
+    run:
+
+        from gpytorch.distributions import MultivariateNormal
+
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+
+        p = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/p",
+            default=0,
+        )
+
+        df, ds, model = util.load_run(
+            wildcards.ds,
+            wildcards.phenotype,
+            "lantern",
+            "full",
+            dsget("K", 8),
+        )
+        model.eval()
+
+        X = ds[:len(ds)][0]
+        with torch.no_grad():
+            Z = model.basis(X)[:, model.basis.order]
+
+        Z1 = np.linspace(Z[:, 0].min(), Z[:, 0].max(), 50)
+        Z2 = np.linspace(Z[:, 1].min(), Z[:, 1].max(), 50)
+        ZZ1, ZZ2 = np.meshgrid(Z1, Z2)
+
+        Zsamp = torch.zeros(2500, 8)
+        Zsamp[:, 0] = torch.from_numpy(ZZ1.ravel())
+        Zsamp[:, 1] = torch.from_numpy(ZZ2.ravel())
+
+        Kz = model.surface.kernel(Zsamp).evaluate()
+        if ds.D > 1:
+            Kz = Kz[p, :, :]
+
+        
+        plt.figure(figsize=(3, 6), dpi=200)
+
+        for i in range(3):
+            plt.subplot(3, 1, i+1)
+            f = MultivariateNormal(torch.zeros(2500), Kz+torch.eye(2500)*1e-4).sample()
+            plt.contourf(ZZ1, ZZ2, f.reshape(ZZ1.shape).numpy(), levels=8,)
+
+            if i == 2:
+                plt.xlabel("$z_1$")
+            plt.ylabel("$z_2$")
+
+            plt.colorbar()
+
+        plt.tight_layout()
+        plt.savefig(output[0])
+

@@ -109,56 +109,81 @@ allostery1:
 
   phenotypes:
     joint: ["log_ec50_noise0.1", "log_ginf_noise0.1", "log_g0_noise0.1"]
+    noise0.01: ["log_ec50_noise0.01", "log_ginf_noise0.01", "log_g0_noise0.01"]
 
 allostery2:
 
   phenotypes:
     joint: ["log_ec50_noise0.1", "log_ginf_noise0.1", "log_g0_noise0.1"]
+    noise0.01: ["log_ec50_noise0.01", "log_ginf_noise0.01", "log_g0_noise0.01"]
 
 allostery3:
 
   phenotypes:
     joint: ["log_ec50_noise0.1", "log_ginf_noise0.1", "log_g0_noise0.1"]
+    noise0.01: ["log_ec50_noise0.01", "log_ginf_noise0.01", "log_g0_noise0.01"]
+
+simK1:
+  lantern:
+    epochs: 500
+simK2:
+  lantern:
+    epochs: 500
+simK4:
+  lantern:
+    epochs: 500
+simK6:
+  lantern:
+    epochs: 500
+simK8:
+  K: 10
+  lantern:
+    epochs: 500
 
 simulations:
   K1:
     K: 1
-    p: 300
-    N: 50000
-    mutation_rate: 0.03
-    sigma_y: 0.01
+    p: 1800
+    mutation_rate: 0.0025
+    N: 100000
+    sigma_y: 0.05
 
   K2:
     K: 2
-    p: 100
-    N: 50000
-    mutation_rate: 0.03
-    sigma_y: 0.01
+    p: 1800
+    mutation_rate: 0.0025
+    N: 100000
+    sigma_y: 0.05
     lantern:
       epochs: 5000
 
   K4:
     K: 4
-    p: 100
-    N: 10000
-    mutation_rate: 0.01
-    sigma_y: 0.01
+    p: 1800
+    mutation_rate: 0.0025
+    N: 100000
+    sigma_y: 0.05
+    lantern:
+      epochs: 500
 
   K6:
     K: 6
-    p: 100
+    p: 300
+    mutation_rate: 0.015
     N: 100000
-    mutation_rate: 0.03
-    sigma_y: 0.01
+    sigma_y: 0.05
     lantern:
-      epochs: 2000
+      epochs: 500
 
   K8:
     K: 8
-    p: 100
+    p: 300
+    mutation_rate: 0.015
     N: 100000
-    mutation_rate: 0.03
-    sigma_y: 0.01
+    sigma_y: 0.05
+    lantern:
+      epochs: 500
+
 
 figures:
   surface:
@@ -174,6 +199,7 @@ figures:
       ec50:
         raw: "ec50"
         log: True
+        slice-alpha: 0.00
         fig_kwargs:
           figsize: [5, 3]
         cbar_title: "LacI\n$\\mathrm{EC}_{50}$"
@@ -187,6 +213,7 @@ figures:
       ginf:
         raw: "ginf"
         log: True
+        slice-alpha: 0.00
         p: 1
         cbar_title: "LacI\n$\\mathrm{G}_{\\infty}$"
         fig_kwargs:
@@ -313,3 +340,8 @@ figures:
 
     covid-joint:
       zdim: 5
+
+  dimensions:
+    laci-joint:
+      useDims: null
+      maxDist: null

@@ -212,6 +212,26 @@ rule exp_figures:
             ],
         ),
         expand(
+            "figures/{ds}/{fig}.png",
+            ds=[
+                "allostery1-joint",
+                "allostery1-noise0.01",
+                "allostery2-joint",
+                "allostery2-noise0.01",
+                "allostery3-joint",
+                "allostery3-noise0.01",
+            ],
+            fig=[
+                # "anglehist",
+                # "effects-sparsity",
+                "effects-significance-count",
+                "effects-crossplot",
+                "dimensions_fold_change",
+                "dimensions-logprob",
+                # "effects-pairplot",
+            ],
+        ),
+        expand(
             "figures/{dstarg}/{fig}-r{r}.png",
             dstarg=[
                 "laci-joint/ec50",
@@ -235,7 +255,7 @@ rule exp_figures:
             fig=[
                 "surface",
             ],
-            k = range(2, 4),
+            k = range(2, 8),
         ),
         expand(
             "figures/{dstarg}/{fig}-slice-z{k}.png",
@@ -319,13 +339,15 @@ rule exp_figures:
                 "effects-sparsity",
                 "effects-significance-count",
                 "effects-pairplot",
+                "dimensions_fold_change",
+                "dimensions-logprob",
             ],
         ),
-        # expand(
-        #     "figures/sim{dataset}-phenotype/{fig}.png",
-        #     dataset=["K1", "K2", "K4", "K6", "K8"],
-        #     fig = ["dimensions"]
-        # ),
+        expand(
+            "figures/sim{dataset}-phenotype/{fig}.png",
+            dataset=["K1", "K2", "K4", "K8"],
+            fig=["dimensions", "dimensions-logprob", "dimensions_fold_change"],
+        ),
         expand(
             "figures/{dataset}/affine-{fig}.png",
             fig = ["history", "effects"],
@@ -372,10 +394,10 @@ rule pred_figures:
             f"figures/{ds}-{phen}/lantern-vary-k-{targ}.png"
             for (ds, phen, targ) in [
                 ("laci", "joint", "ec50-norm"),
-                # ("laci", "joint", "ginf-norm"),
-                # ("gfp", "brightness", "phenotype"),
-                # ("covid", "joint", "func_score_norm_bind"),
-                # ("covid", "joint", "func_score_norm_exp"),
+                ("laci", "joint", "ginf-norm"),
+                ("gfp", "brightness", "phenotype"),
+                ("covid", "joint", "func_score_norm_bind"),
+                ("covid", "joint", "func_score_norm_exp"),
             ]
         ],
     shell:
