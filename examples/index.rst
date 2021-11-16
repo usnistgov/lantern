@@ -7,3 +7,4 @@ Examples
    :maxdepth: 1
 
    example-1d
+   analyzing-gfp
