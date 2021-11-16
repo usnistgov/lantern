@@ -121,7 +121,28 @@ class Dataset(_DataframeDataset, _Base):
     
     """
 
-    pass
+    @classmethod
+    def from_sequences(
+        cls,
+        df,
+        wildtype: str,
+        sequence_column: str = "sequence",
+        substitutions="substitutions",
+        *args,
+        **kwargs,
+    ):
+        """Build a Dataframe dataset using full sequences, converting to a compressed substitution string."""
+        df[substitutions] = df[sequence_column].apply(
+            lambda x: ":".join(
+                [
+                    f"{ww}{i+1}{vv}"
+                    for i, (ww, vv) in enumerate(zip(list(wildtype), list(x)))
+                    if ww != vv
+                ]
+            )
+        )
+
+        return cls(df, *args, **kwargs)
 
 
 @attr.s()

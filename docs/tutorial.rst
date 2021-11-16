@@ -67,6 +67,15 @@ tensor([1., 0., 1., 0., 0.])
 '+c:+e'
 
 
+An alternative data format is supported, comparing the full sequence
+for each variant against the wild-type (see :meth:`~lantern.dataset.Dataset.from_sequences`).
+
+>>> df = pd.DataFrame({"phenotype": [0]*3, "sequence": ["AAA", "ATC", "CGA"]})
+>>> ds = lantern.dataset.Dataset.from_sequences(df, wildtype="AAA", sequence_col="sequence")
+>>> ds.tokenizer.tokens
+['A1C', 'A2G', 'A2T', 'A3C']
+
+
 
 
 Building a LANTERN model
