@@ -1,4 +1,4 @@
-name: lantern-response
+name: lantern
 channels:
   - defaults
   - conda-forge
