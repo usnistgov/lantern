@@ -568,7 +568,7 @@ rule lantern_cv_k:
         "experiments/{ds}-{phenotype}/lantern-K{k,\d+}/cv{cv,\d+}/loss.pt"
     resources:
         gres="gpu:1",
-        partition="singlegpu",
+        partition="batch",
         time = "24:00:00",
     run:
         def dsget(pth, default):

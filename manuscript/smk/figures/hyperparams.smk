@@ -4,8 +4,8 @@ rule lantern_vary_k:
         lantern = lambda wildcards: (
             expand(
                 "experiments/{ds}-{phenotype}/lantern-K{k}/cv{cv}/pred-val.csv",
-                cv=range(4),
-                k = [1, 2, 3, 4, 5, 6, 8, 16],
+                cv=range(10),
+                k = [1, 2, 3, 4, 8, 16],
                 allow_missing=True,
             )
         ),

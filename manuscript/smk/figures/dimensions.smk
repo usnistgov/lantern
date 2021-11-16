@@ -295,6 +295,126 @@ rule dimensions_fold_change:
         plt.semilogy()
         plt.savefig(output[0], bbox_inches="tight", verbose=False)
 
+rule dimensions_fold_change_allostery:
+    input:
+        expand("experiments/allostery{D}-joint/lantern/full/model.pt", D=range(1, 4))
+    group: "figure"
+    output:
+        "figures/allostery-fold-change.png"
+    group: "figure"
+    run:
+        thresh = 1
+
+        plt.figure(figsize=(3, 2), dpi=300)
+        K = 8
+        for d in range(1, 4):
+
+            df, ds, model = util.load_run(
+                f"allostery{d}", "joint", "lantern", "full", K
+            )
+
+            qalpha = model.basis.qalpha(detach=True)
+            sigma = 1/qalpha.mean[model.basis.order]
+            fold = (sigma[:-1] / sigma[1:]).numpy()[::-1]
+            select = (np.where(np.log10(fold) > thresh)[0]).min()
+
+            plt.plot(fold, marker="o", label="$\mathcal{D}_" + str(d) + "$")
+            # plt.scatter(range(select, K-1), fold[select:], facecolors="none", s=100, edgecolors=f"C{d-1}")
+            plt.scatter([select], fold[select], facecolors="none", s=100, edgecolors=f"C{d-1}")
+            plt.xticks(range(K-1), [f"z{K-k-1}" for k in range(K-1)])
+            plt.ylabel("fold-change")
+
+        plt.axhline(10**thresh, c="r", ls="--")
+        plt.legend()
+        plt.semilogy()
+        plt.savefig(output[0], bbox_inches="tight", verbose=False)
+
+rule dimensions_fold_change_hermite:
+    input:
+        expand("experiments/simK{D}-phenotype/lantern/full/model.pt", D=[1, 2, 4, 8])
+    group: "figure"
+    output:
+        "figures/hermite-fold-change.png"
+    group: "figure"
+    run:
+        thresh = 1
+
+        fig = plt.figure(figsize=(3, 2), dpi=300)
+        for i, d in enumerate([1, 2, 4, 8]):
+            K = 8 if d != 8 else 10
+
+            df, ds, model = util.load_run(
+                f"simK{d}", "phenotype", "lantern", "full", K
+            )
+
+            qalpha = model.basis.qalpha(detach=True)
+            sigma = 1/qalpha.mean[model.basis.order]
+            fold = (sigma[:-1] / sigma[1:]).numpy()[::-1]
+            select = (np.where(np.log10(fold) > thresh)[0]).min()
+
+            x = 10 - K + np.arange(K-1)
+            plt.plot(x, fold, marker="o", label="$\mathcal{H}_" + str(d) + "$")
+            # plt.scatter(x[select:], fold[select:], facecolors="none", s=100, edgecolors=f"C{i}")
+            plt.scatter(x[select], fold[select], facecolors="none", s=100, edgecolors=f"C{i}")
+
+        plt.xticks(x, [f"z{K-k-1}" for k in range(K-1)])
+        plt.ylabel("fold-change")
+
+        plt.axhline(10**thresh, c="r", ls="--")
+        plt.semilogy()
+        fig.legend(
+            bbox_to_anchor=(0.98, 0.86),
+            loc="upper left",
+            borderaxespad=0.0,
+        )
+        plt.savefig(output[0], bbox_inches="tight")
+
+rule dimensions_fold_change_large:
+    input:
+        "experiments/gfp-brightness/lantern/full/model.pt",
+        "experiments/laci-joint/lantern/full/model.pt",
+        "experiments/covid-joint/lantern/full/model.pt",
+    group: "figure"
+    output:
+        "figures/large-scale-fold-change.png"
+    group: "figure"
+    run:
+        thresh = 1
+        K = 8
+
+        fig = plt.figure(figsize=(3, 2), dpi=300)
+        for i, (label, ds, phen) in enumerate([
+                ("avGFP", "gfp", "brightness"),
+                ("LacI", "laci", "joint"),
+                ("SARS-CoV-2", "covid", "joint"),
+        ]):
+
+            df, ds, model = util.load_run(
+                ds, phen, "lantern", "full", K
+            )
+
+            qalpha = model.basis.qalpha(detach=True)
+            sigma = 1/qalpha.mean[model.basis.order]
+            fold = (sigma[:-1] / sigma[1:]).numpy()[::-1]
+            select = (np.where(np.log10(fold) > thresh)[0]).min()
+
+            x = + np.arange(K-1)
+            plt.plot(x, fold, marker="o", label=label)
+            # plt.scatter(x[select:], fold[select:], facecolors="none", s=100, edgecolors=f"C{i}")
+            plt.scatter(x[select], fold[select], facecolors="none", s=100, edgecolors=f"C{i}")
+
+        plt.xticks(x, [f"z{K-k-1}" for k in range(K-1)])
+        plt.ylabel("fold-change")
+
+        plt.axhline(10**thresh, c="r", ls="--")
+        plt.semilogy()
+        fig.legend(
+            bbox_to_anchor=(0.98, 0.86),
+            loc="upper left",
+            borderaxespad=0.0,
+        )
+        plt.savefig(output[0], bbox_inches="tight")
+
 rule dimensions_logprob:
     input:
         "data/processed/{ds}.csv",
