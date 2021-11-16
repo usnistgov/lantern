@@ -162,6 +162,58 @@ rule predict:
         rules.predict_torch.input,
         rules.predict_ge.input,
 
+rule interpret_figures:
+    """
+    Generate interpretable model figures for the manuscript.
+    """
+    input:
+        expand(
+            "figures/{dstarg}/{fig}.png",
+            dstarg=[
+                "laci-joint/ec50",
+                "laci-joint/ginf",
+                "covid-joint/exp",
+                "covid-joint/bind",
+                "gfp-brightness/brightness",
+            ],
+            fig=[
+                "surface",
+                "gradient",
+                "robustness",
+                "robustness-distance",
+                "laplacian",
+                "additivity",
+                "additivity-distance",
+                "diffops-distance",
+            ],
+        ),
+        expand(
+            "figures/{dataset}/{fig}.png",
+            dataset=["laci-joint", "covid-joint", "gfp-brightness"],
+            fig=[
+                "anglehist",
+                "effects-sparsity",
+                "effects-significance-count",
+                "effects-pairplot",
+                "dimensions_fold_change",
+                "dimensions-logprob",
+            ],
+        ),
+        # highlights
+        "figures/gfp-brightness/brightness/surface-focus.png",
+        "figures/gfp-brightness/brightness/surface-bfp1.png",
+        "figures/gfp-brightness/brightness/surface-bfp2.png",
+        "figures/laci-joint/parametric.png",
+        "figures/covid-joint/anglehist-highlight.png",
+        "figures/covid-joint/axes-surface.png",
+        "figures/covid-joint/parametric.png",
+        "figures/covid-joint/variants.png",
+        "figures/covid-joint/variants_project.png",
+        "figures/dimensions.png",
+    shell:
+        "tar -czf figures.tar.gz figures/*"
+
+
 rule exp_figures:
     """
     Generate experiment figures for the manuscript.
