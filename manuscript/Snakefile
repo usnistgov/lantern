@@ -413,15 +413,6 @@ rule figures:
     shell:
         "tar -czf figures.tar.gz figures/*"
 
-rule help:
-    """
-    Print list of all targets with help.
-    """
-    run:
-        for rule in workflow.rules:
-            print(rule.name)
-            print(rule.docstring)
-
 rule environment:
     shell:
         """conda env export -n lantern > environment.yml"""

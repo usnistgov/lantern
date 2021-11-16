@@ -32,6 +32,8 @@
    #+begin_src sh
      snakemake data -j1
    #+end_src
+
+   [[file:dags/data.png]]
    
 ** Interpretable models
    Pre-trained parameters of the large-scale GPL datasets are
