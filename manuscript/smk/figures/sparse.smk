@@ -13,7 +13,7 @@ rule sparse_effects:
         "figures/{ds}-{phenotype}/effects-sparsity.png"
     run:
         import seaborn as sns
-        from torch.distributions import Normal
+        from scipy.stats import chi2
 
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -34,30 +34,23 @@ rule sparse_effects:
         )
         model.eval()
 
-        K = fget(
-            "zdim",
-            default=K,
-        )
+        K = fget("zdim", default=K,)
 
-        qW = Normal(
-            model.basis.W_mu[:, model.basis.order[:K]].detach(),
-            model.basis.W_log_sigma[:, model.basis.order[:K]].detach().exp(),
-        )
+        Wmu = model.basis.W_mu[:, model.basis.order[:K]].detach()
+        Wvar = model.basis.W_log_sigma[:, model.basis.order[:K]].detach().exp().pow(2)
+        tstat = (Wmu.pow(2) / Wvar).sum(axis=1)
 
-        c = torch.min(qW.cdf(torch.tensor(0)), 1-qW.cdf(torch.tensor(0.)))
-
-        alphas = torch.logspace(-4, -1)
+        alphas = np.logspace(-4, -1)
 
         # percentage removed at this significance level
         percents = [
-            1 - ((c.prod(dim=1) < alpha / 2).sum() / qW.mean.shape[0]).item()
-            for alpha in alphas
+            (chi2(K).cdf(tstat) < 1 - alpha).sum() / ds.p for alpha in alphas
         ]
 
-        plt.figure(figsize=(3,2), dpi=300)
-        plt.plot(alphas.numpy(), percents)
-        plt.ylabel("non-significant mutations")
-        plt.xlabel("significance level")
+        plt.figure(figsize=(3, 2), dpi=300)
+        plt.plot(alphas, percents)
+        plt.ylabel("effective zero mutations")
+        plt.xlabel("confidence level")
         plt.semilogx()
         plt.grid()
 
