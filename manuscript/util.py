@@ -129,7 +129,8 @@ def buildLandscape(
     y = (y + offset) * std + mu
 
     # scale to base variance
-    fvar = fvar / ops
+    # fvar = fvar / ops
+    fvar = fvar * (std ** 2)
 
     if log:
         fmu = np.power(10, fmu)
@@ -164,6 +165,7 @@ def plotLandscape(
     levels=8,
     contour_kwargs={},
     varColor=False,
+    showInterval=False,
     cbar_kwargs={},
     fig_kwargs=dict(dpi=200, figsize=(6, 4)),
 ):
@@ -209,6 +211,15 @@ def plotLandscape(
             (relvar - relvar.min()) / (1 - relvar.min()),
             extent=(Z1.min(), Z1.max(), Z2.min(), Z2.max()),
             origin="upper",
+            aspect="auto",
+            cmap="Greys",
+            interpolation="lanczos",
+        )
+    if showInterval:
+        interval_im = ax.imshow(
+            4 * np.sqrt(fvar.reshape(Z1.shape)),
+            extent=(Z1.min(), Z1.max(), Z2.min(), Z2.max()),
+            origin="lower",
             aspect="auto",
             cmap="Greys",
             interpolation="lanczos",
@@ -285,4 +296,6 @@ def plotLandscape(
         cbar = fig.colorbar(sm, ax=ax, **cbar_kwargs)
         cbar.ax.set_ylabel(contour_label)
 
+    if showInterval:
+        return fig, norm, cs.cmap, vrange, interval_im
     return fig, norm, cs.cmap, vrange

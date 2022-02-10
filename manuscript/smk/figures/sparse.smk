@@ -43,14 +43,17 @@ rule sparse_effects:
         alphas = np.logspace(-4, -1)
 
         # percentage removed at this significance level
+        # percents = [
+        #     1 - ((chi2(K).cdf(tstat) < 1 - alpha).sum() / ds.p) for alpha in alphas
+        # ]
         percents = [
-            (chi2(K).cdf(tstat) < 1 - alpha).sum() / ds.p for alpha in alphas
+            ((chi2(K).cdf(tstat) > 1 - alpha).sum() / ds.p) for alpha in alphas
         ]
 
-        plt.figure(figsize=(3, 2), dpi=300)
+        plt.figure(figsize=(3, 3), dpi=300)
         plt.plot(alphas, percents)
-        plt.ylabel("effective zero mutations")
-        plt.xlabel("confidence level")
+        plt.ylabel("fraction of significant mutations")
+        plt.xlabel("probability cutoff")
         plt.semilogx()
         plt.grid()
 

@@ -268,3 +268,157 @@ rule effects_significance_quantile:
 
         plt.tight_layout()
         plt.savefig(output[0], bbox_inches="tight")
+
+rule effects_retrain:
+    input:
+        "experiments/{ds}-{phenotype}/lantern/full/model.pt",
+        "experiments/{ds}-{phenotype}/lantern/full{targ}/model.pt",
+    group: "figure"
+    output:
+        "figures/{ds}-{phenotype}/effects-linear{targ}.png",
+        "figures/{ds}-{phenotype}/effects-pvals{targ}.png"
+    run:
+        import scipy.stats
+    
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+        
+        def fget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(
+                config,
+                f"figures/effects/{wildcards.ds}-{wildcards.phenotype}/{pth}",
+                default=default,
+            )
+
+        K = dsget("K", 8)
+        zK = fget(
+            "zdim",
+            default=K,
+        )
+
+
+        df, ds, model = util.load_run(
+            wildcards.ds, wildcards.phenotype, "lantern", "full", K
+        )
+
+        try:
+            df, ds, model2 = util.load_run(
+                wildcards.ds, wildcards.phenotype, "lantern", f"full{wildcards.targ}", K
+            )
+        except:
+            zK = 4
+            try:
+                df, ds, model2 = util.load_run(
+                    wildcards.ds, wildcards.phenotype, "lantern", f"full{wildcards.targ}", kernel="matern"
+                )
+            except:
+                df, ds, model2 = util.load_run(
+                    wildcards.ds, wildcards.phenotype, "lantern", f"full{wildcards.targ}", kernel="rbf"
+                )
+
+        X = model.basis.W_mu.detach().numpy()
+
+        pvals = []
+
+        plt.figure(figsize=(3, 2*zK), dpi=300)
+        for k in range(zK):
+            plt.subplot(zK, 1, k+1)
+
+            y = model2.basis.W_mu.detach()[:, model2.basis.order[k]].numpy()
+            ystd = model2.basis.W_log_sigma.exp().detach()[:, model2.basis.order[k]].numpy()
+
+            sel = (np.abs(y) - 2*ystd) > 0
+
+            if sum(sel) == 0:
+                continue
+
+            sol, r, _, _ = np.linalg.lstsq(X[sel, :], y[sel], rcond=None)
+            yhat = np.dot(X[sel, :], sol)
+
+            im, _, _, _ = plt.hist2d(yhat, y[sel], norm=mpl.colors.LogNorm(), bins=30)
+
+            plt.xlabel(f"$z_{k+1}$ (predicted)")
+            plt.ylabel(f"$z_{k+1}$ (actual)")
+            plt.colorbar()
+
+            pvals.append(scipy.stats.pearsonr(yhat, y[sel])[1])
+
+        plt.tight_layout()
+        plt.savefig(output[0], bbox_inches="tight")
+
+        plt.figure(figsize=(3, 2), dpi=300)
+        plt.tight_layout()
+        plt.plot(range(len(pvals)), pvals, marker="o")
+        plt.xticks(range(len(pvals)), [f"z_{k+1}" for k in range(len(pvals))])
+        plt.semilogy()
+
+        plt.savefig(output[1], bbox_inches="tight")
+
+rule effects_certainty:
+    """
+    Number of significant effects for each dimension
+    """
+
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/lantern/full/model.pt"
+    group: "figure"
+    output:
+        "figures/{ds}-{phenotype}/effects-certainty.png"
+    run:
+        import seaborn as sns
+
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+        
+        def fget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(
+                config,
+                f"figures/effects/{wildcards.ds}-{wildcards.phenotype}/{pth}",
+                default=default,
+            )
+        from scipy.stats import norm
+
+        K = dsget("K", 8)
+
+        df, ds, model = util.load_run(
+            wildcards.ds, wildcards.phenotype, "lantern", "full", K
+        )
+        model.eval()
+
+        X = ds[:len(ds)][0]
+        obs = X.sum(axis=0).numpy()
+
+        var = (
+            model.basis.W_log_sigma[:, model.basis.order]
+            .detach()
+            .exp()
+            .pow(2)
+            .sum(axis=1)
+            .numpy()
+        )
+
+        plt.figure(figsize=(3, 2), dpi=300)
+        plt.hist2d(
+            obs,
+            var,
+            norm=mpl.colors.LogNorm(),
+            bins=(
+                np.linspace(0, obs.max(), 30),
+                np.logspace(np.log10(var.min()), np.log10(var.max()), 30),
+            ),
+        )
+        plt.tight_layout()
+        plt.xlabel("observations")
+        plt.ylabel("total variance")
+        plt.semilogy()
+
+        plt.colorbar()
+
+        plt.tight_layout()
+        plt.savefig(output[0], bbox_inches="tight")

@@ -1113,7 +1113,7 @@ rule covid_variants:
         plt.xlim(-0.4, 2.2)
         plt.ylim(-0.2, 2.2)
 
-        colors = ["coral", "cyan", "palegreen"]
+        colors = ["coral", "mediumorchid", "palegreen"]
 
         for i in range(3):
             plt.arrow(
@@ -1506,3 +1506,4 @@ rule covid_bind_surface_zk:
 
         plt.tight_layout()
         plt.savefig(output[0], bbox_inches="tight", transparent=False)
+

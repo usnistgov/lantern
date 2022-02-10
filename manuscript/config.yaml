@@ -107,17 +107,21 @@ covid:
 
 allostery1:
 
+  label: "$\\mathcal{D}_1$"
+
   phenotypes:
     joint: ["log_ec50_noise0.1", "log_ginf_noise0.1", "log_g0_noise0.1"]
     noise0.01: ["log_ec50_noise0.01", "log_ginf_noise0.01", "log_g0_noise0.01"]
 
 allostery2:
+  label: "$\\mathcal{D}_2$"
 
   phenotypes:
     joint: ["log_ec50_noise0.1", "log_ginf_noise0.1", "log_g0_noise0.1"]
     noise0.01: ["log_ec50_noise0.01", "log_ginf_noise0.01", "log_g0_noise0.01"]
 
 allostery3:
+  label: "$\\mathcal{D}_3$"
 
   phenotypes:
     joint: ["log_ec50_noise0.1", "log_ginf_noise0.1", "log_g0_noise0.1"]
@@ -139,6 +143,11 @@ simK8:
   K: 10
   lantern:
     epochs: 500
+
+sigmoid:
+  K: 1
+  lantern:
+    epochs: 5000
 
 simulations:
   K1:
@@ -194,6 +203,9 @@ figures:
         cbar_kwargs:
           aspect: 8
           shrink: 0.8
+        highlight:
+          peak1: [8.0, 12.8, -4.8, 0.8]
+          peak2: [6, 8, -2.5, 2.5]
 
     laci-joint:
       ec50:
@@ -201,7 +213,8 @@ figures:
         log: True
         slice-alpha: 0.00
         fig_kwargs:
-          figsize: [5, 3]
+          # figsize: [5, 3]
+          dpi: 300
         cbar_title: "LacI\n$\\mathrm{EC}_{50}$"
         cbar_kwargs:
           aspect: 8
@@ -217,7 +230,8 @@ figures:
         p: 1
         cbar_title: "LacI\n$\\mathrm{G}_{\\infty}$"
         fig_kwargs:
-          figsize: [5, 3]
+          # figsize: [5, 3]
+          dpi: 300
         cbar_kwargs:
           aspect: 8
           shrink: 0.6
@@ -340,6 +354,15 @@ figures:
 
     covid-joint:
       zdim: 5
+
+    allostery1-joint:
+      zdim: 1
+
+    allostery2-joint:
+      zdim: 2
+
+    allostery3-joint:
+      zdim: 3
 
   dimensions:
     laci-joint:

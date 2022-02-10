@@ -136,6 +136,237 @@ rule surface:
 
         plt.savefig(output[0], bbox_inches="tight", verbose=False)
 
+rule surface_uncrop:
+    """
+    Uncropped surface plot of lantern model.
+    """
+
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/lantern/full{rerun}{kernel}/model.pt"
+    output:
+        "figures/{ds}-{phenotype}/{target}/surface-uncrop{highlight,(-highlight-\w*)?}{rerun,(-r.*)?}{kernel,(-kern-.*)?}.png"
+    group: "figure"
+    run:
+
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+
+        alpha = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha",
+            default=0.01,
+        )
+        raw = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/raw",
+            default=None,
+        )
+        log = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/log",
+            default=False,
+        )
+        p = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/p",
+            default=0,
+        )
+        image = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/image",
+            default=False,
+        )
+        scatter = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/scatter",
+            default=True,
+        )
+        mask = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/mask",
+            default=False,
+        )
+        cbar_title = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_title",
+            default=None,
+        )
+        plot_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/plot_kwargs",
+            default={},
+        )
+        # cbar_kwargs = {"shrink": 0.5, "aspect": 100, "fraction": 0.1}
+        cbar_kwargs = {}
+
+        df, ds, model = util.load_run(
+            wildcards.ds,
+            wildcards.phenotype,
+            "lantern",
+            "full",
+            dsget("K", 8),
+            slug=wildcards.rerun+wildcards.kernel,
+            kernel=wildcards.kernel
+        )
+        model.eval()
+
+        # find expanded limits
+        X, y = ds[: len(ds)][:2]
+        y = y[:, p].numpy()
+        with torch.no_grad():
+            z = model.basis(X)
+            z = z[:, model.basis.order]
+
+        if wildcards.highlight == "":
+            lims = [
+                z[:, 0].min() - 0.1 * (z[:, 0].max() - z[:, 0].min()),
+                z[:, 0].max() + 0.1 * (z[:, 0].max() - z[:, 0].min()),
+                z[:, 1].min() - 0.1 * (z[:, 1].max() - z[:, 1].min()),
+                z[:, 1].max() + 0.1 * (z[:, 1].max() - z[:, 1].min()),
+            ]
+        else:
+            hgh = wildcards.highlight[wildcards.highlight.rfind("-") + 1 :]
+
+            lims = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/highlight/{hgh}",
+            )
+
+
+        z, fmu, fvar, Z1, Z2, y, Z = util.buildLandscape(
+            model,
+            ds,
+            mu=df[raw].mean() if raw is not None else 0,
+            std=df[raw].std() if raw is not None else 1,
+            log=log,
+            p=p,
+            lim=lims,
+        )
+
+        # fig, axes = plt.subplots(ncols=2, **fig_kwargs)
+
+        S = 10
+        # SIZE = (S, 2*S+1)
+        SIZE = (2*S, S+1)
+        fig = plt.figure(figsize=(4, 7), dpi=300)
+        axes = [
+            plt.subplot2grid(
+                SIZE,
+                (0, 0),
+                colspan=S,
+                rowspan=S,
+            ),
+            plt.subplot2grid(
+                SIZE,
+                # (0, S),
+                (S, 0),
+                colspan=S,
+                rowspan=S,
+            ),
+        ]
+
+        # scatter
+        fig, norm, cmap, vrange = util.plotLandscape(
+            z,
+            fmu,
+            fvar,
+            Z1,
+            Z2,
+            fig=fig,
+            ax=axes[0],
+            log=log,
+            image=image,
+            mask=mask,
+            cbar_kwargs=cbar_kwargs,
+            colorbar=False,
+            **plot_kwargs
+        )
+
+        axes[0].scatter(
+            z[:, 0],
+            z[:, 1],
+            c=y,
+            # alpha=0.4,
+            rasterized=True,
+            vmin=vrange[0],
+            vmax=vrange[1],
+            norm=mpl.colors.LogNorm(vmin=vrange[0], vmax=vrange[1],) if log else None,
+            s=0.3,
+        )
+
+        axes[0].set_xlabel("")
+        axes[0].set_xticks([])
+
+        # reset limits
+        axes[0].set_xlim(*lims[:2])
+        axes[0].set_ylim(*lims[2:])
+
+        # interval
+        fig, norm, cmap, vrange, interval_im = util.plotLandscape(
+            z,
+            fmu,
+            fvar,
+            Z1,
+            Z2,
+            fig=fig,
+            ax=axes[1],
+            log=log,
+            image=image,
+            mask=mask,
+            showInterval=True,
+            cbar_kwargs=cbar_kwargs,
+            colorbar=False,
+            plotOrigin=False,
+            **plot_kwargs
+        )
+        # axes[1].set_ylabel("")
+        # axes[1].set_yticks([])
+
+        # surface colorbar
+        if log:
+            norm = mpl.colors.LogNorm(vmin=vrange[0], vmax=vrange[1])
+        else:
+            norm = mpl.colors.Normalize(vmin=vrange[0], vmax=vrange[1])
+
+        sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+        sm.set_array(np.array([]))
+
+        # cbar = fig.colorbar(sm, ax=axes, **cbar_kwargs)
+        cbar = fig.colorbar(
+            sm,
+            # cax=plt.subplot2grid(
+            #     SIZE, (1, 2 * S), colspan=1, rowspan=S // 3,
+            # ),
+            cax=plt.subplot2grid(
+                SIZE, (1, S), colspan=1, rowspan=2 * S // 3,
+            ),
+            **cbar_kwargs
+        )
+
+        if cbar_title is not None:
+            fig.axes[-1].set_title(cbar_title, y=1.04, loc="left", ha="left")
+
+        # interval colorbar
+        # fig.colorbar(interval_im, ax=fig.axes, **cbar_kwargs)
+        fig.colorbar(
+            interval_im,
+            # cax=plt.subplot2grid((4, 10), (0, 9), colspan=1, rowspan=4,),
+            # cax=plt.subplot2grid(
+            #     (S, 2 * S + 1), (2 * S // 3 + 1, 2 * S), colspan=1, rowspan=S // 3,
+            # ),
+            cax=plt.subplot2grid(
+                SIZE, (1+S, S), colspan=1, rowspan=2 * S // 3,
+            ),
+            **cbar_kwargs
+        )
+        fig.axes[-1].set_title("interval\nwidth", y=1.04, loc="left", ha="left")
+
+        # finish
+        plt.savefig(output[0], bbox_inches="tight", verbose=False)
+
 rule surface_slice:
     """
     Surface plot of lantern model.
