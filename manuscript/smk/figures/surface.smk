@@ -369,7 +369,7 @@ rule surface_uncrop:
 
 rule surface_slice:
     """
-    Surface plot of lantern model.
+    Surface slice of lantern model.
     """
 
     input:
@@ -563,3 +563,204 @@ rule posterior_sample_surface:
         plt.tight_layout()
         plt.savefig(output[0])
 
+rule surface_scan:
+    """
+    Surface scan of lantern model.
+    """
+
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/lantern/full{rerun}{kernel}/model.pt"
+    output:
+        "figures/{ds}-{phenotype}/{target}/surface-scan{rerun,(-r.*)?}{kernel,(-kern-.*)?}.png"
+    group: "figure"
+    run:
+
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+
+        alpha = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha",
+            default=0.01,
+        )
+        raw = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/raw",
+            default=None,
+        )
+        log = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/log",
+            default=False,
+        )
+        p = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/p",
+            default=0,
+        )
+        image = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/image",
+            default=False,
+        )
+        scatter = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/scatter",
+            default=True,
+        )
+        mask = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/mask",
+            default=False,
+        )
+        cbar_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_kwargs",
+            default={},
+        )
+        fig_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/fig_kwargs",
+            default=dict(dpi=300, figsize=(4, 3)),
+        )
+        cbar_title = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_title",
+            default=None,
+        )
+        plot_kwargs = get(
+            config,
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/plot_kwargs",
+            default={},
+        )
+        zdim = get(
+            config,
+            f"figures/effects/{wildcards.ds}-{wildcards.phenotype}/zdim",
+        )
+
+        df, ds, model = util.load_run(
+            wildcards.ds,
+            wildcards.phenotype,
+            "lantern",
+            "full",
+            dsget("K", 8),
+            slug=wildcards.rerun+wildcards.kernel,
+            kernel=wildcards.kernel
+        )
+        model.eval()
+
+        # 
+        z, fmu, fvar, Z1, Z2, y, Z = util.buildLandscape(
+            model,
+            ds,
+            mu=df[raw].mean() if raw is not None else 0,
+            std=df[raw].std() if raw is not None else 1,
+            log=log,
+            p=p,
+            alpha=alpha,
+        )
+
+        # number of scans along both dims
+        N1 = N2 = 5
+        if zdim < 4:
+            N2 = 1
+
+        scan1 = 2
+        scan2 = 3
+
+        # build the groups for the first scan dimension
+        edge1 = np.linspace(z[:, scan1].min(), z[:, scan1].max(), N1 + 2)
+        edge1 = edge1[1:-1]
+        ind1 = np.digitize(z[:, scan1], edge1)
+
+        # build the groups for the second scan dimension
+        edge2 = np.linspace(z[:, scan2].min(), z[:, scan2].max(), N2 + 2)
+        edge2 = edge2[1:-1]
+        ind2 = np.digitize(z[:, scan2], edge2)
+
+        fixed = [None] * model.basis.K
+
+        # get total surface range
+        vrange = (np.inf, -np.inf)
+        for i in range(N1):
+            for j in range(N2):
+                ax = plt.subplot(N2, N1, i + 1 + j * N1)
+
+                fixed[scan1] = edge1[i]
+                fixed[scan2] = edge2[j]
+
+                z, fmu, fvar, Z1, Z2, y, Z  = util.buildLandscape(
+                    model,
+                    ds,
+                    mu=df[raw].mean() if raw is not None else 0,
+                    std=df[raw].std() if raw is not None else 1,
+                    log=log,
+                    p=p,
+                    fixed=fixed,
+                    alpha=alpha,
+                )
+
+                vrange = (min(vrange[0], fmu.min()), max(vrange[1], fmu.max()))
+
+        # make plot
+        fig = plt.figure(figsize=(3 * N1, 3 * N2),)
+        for i in range(N1):
+            for j in range(N2):
+                ax = plt.subplot(N2, N1, i + 1 + j * N1)
+
+                fixed[scan1] = edge1[i]
+                fixed[scan2] = edge2[j]
+
+                z, fmu, fvar, Z1, Z2, y, Z = util.buildLandscape(
+                    model,
+                    ds,
+                    mu=df[raw].mean() if raw is not None else 0,
+                    std=df[raw].std() if raw is not None else 1,
+                    log=log,
+                    p=p,
+                    fixed=fixed,
+                    alpha=alpha,
+                )
+
+                fig, norm, cmap, vrange = util.plotLandscape(
+                    z[(ind1 == i) & (ind2 == j), :],
+                    fmu,
+                    fvar,
+                    Z1,
+                    Z2,
+                    log=log,
+                    image=False,
+                    mask=False,
+                    fig=fig,
+                    ax=ax,
+                    vrange=vrange,
+                )
+
+                plt.scatter(
+                    z[(ind1 == i) & (ind2 == j), 0],
+                    z[(ind1 == i) & (ind2 == j), 1],
+                    c=y[(ind1 == i) & (ind2 == j)],
+                    alpha=0.4,
+                    rasterized=True,
+                    vmin=vrange[0],
+                    vmax=vrange[1],
+                    norm=mpl.colors.LogNorm(vmin=vrange[0], vmax=vrange[1],)
+                    if log
+                    else None,
+                    s=0.3,
+                )
+
+                # reset limits
+                plt.xlim(Z1.min(), Z1.max())
+                plt.ylim(Z2.min(), Z2.max())
+
+                if N2 > 1:
+                    plt.title(f"$z_{scan1+1}={edge1[i]:.3f}$, $z_{scan2+1}={edge2[j]:.3f}$")
+                else:
+                    plt.title(f"$z_{scan1+1}={edge1[i]:.3f}$")
+
+        plt.tight_layout()
+        plt.savefig(output[0], bbox_inches="tight", transparent=True)
