@@ -1,6 +1,10 @@
 #+TITLE: Analysis from manuscript "Interpretable modeling of genotype-phenotype landscapes with state-of-the-art predictive power"
 #+AUTHOR: Peter D. Tonner (NIST)
 
+* Requirements
+  This pipeline was run on linux (Ubuntu 18.04.5 LTS). Other systems
+  have not been tested and are not supported.
+
 * Setup
   
   To easily manage the dependencies to run this code, it is
@@ -8,11 +12,13 @@
 
   #+begin_src bash
     conda env create -f environment.yml
+    conda activate lantern
   #+end_src
   
 * Pipeline
   Everything in the analysis is managed with [[https://snakemake.readthedocs.io/en/stable/index.html][snakemake]], which greatly
   simplifies re-creating the workflow. Below outlines the steps
+<<<<<<< HEAD
   required to reproduce the full analysis. 
 
   The outputs of this pipeline is largely divided into these categories:
@@ -25,6 +31,8 @@
    #+begin_src bash
      snakemake -j1 data
    #+end_src
+
+   [[file:dags/data.png]]
 
 ** Prediction
    Generate the output figures from prediction, and by necessity the
@@ -41,3 +49,23 @@
    #+begin_src bash
      snakemake -j1 exp_figures
    #+end_src
+   
+** Interpretable models
+   Pre-trained parameters of the large-scale GPL datasets are
+   available in the ~experiments~ folder. To generate the figures
+   dependent on these models, run:
+   #+begin_src sh
+     snakemake interpret_figures -j1
+   #+end_src
+   
+** Predictive accuracy
+   The analysis of predictive accuracy for different models requires
+   ten-fold cross-validation across multiple large-scale datasets. It
+   is recommended to only run these analyses if sufficient
+   computational resources are available. See the manuscript for
+   details of computational environment used during the analysis
+
+   #+begin_src sh
+     snakemake pred_figures -j1
+   #+end_src
+   
