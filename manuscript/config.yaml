@@ -207,6 +207,14 @@ figures:
           peak1: [8.0, 12.8, -4.8, 0.8]
           peak2: [6, 8, -2.5, 2.5]
 
+    laci-ec50:
+      ec50:
+        raw: "ec50"
+
+    laci-ginf:
+      ginf:
+        raw: "ginf"
+
     laci-joint:
       ec50:
         raw: "ec50"
@@ -239,6 +247,13 @@ figures:
           log_tick_subs: [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0]
           levels: 10
 
+    covid-exp:
+      exp:
+        raw: "func_score_exp"
+
+    covid-bind:
+      bind:
+        raw: "func_score_bind"
 
     covid-joint:
       exp:
@@ -271,11 +286,39 @@ figures:
         cbar_kwargs:
           aspect: 8
           shrink: 0.8
+      log_ginf:
+        raw: "log_ginf"
+        p: 1
+        cbar_title: "$\\log \\mathrm{G}_{\\infty}$"
+        cbar_kwargs:
+          aspect: 8
+          shrink: 0.8
+      log_g0:
+        raw: "log_ginf"
+        p: 2
+        cbar_title: "$\\log \\mathrm{G}_{0}$"
+        cbar_kwargs:
+          aspect: 8
+          shrink: 0.8
 
     allostery3-joint:
       log_ec50:
         raw: "log_ec50"
         cbar_title: "$\\log \\mathrm{EC}_{50}$"
+        cbar_kwargs:
+          aspect: 8
+          shrink: 0.8
+      log_ginf:
+        raw: "log_ginf"
+        cbar_title: "$\\log \\mathrm{G}_{\\infty}$"
+        p: 1
+        cbar_kwargs:
+          aspect: 8
+          shrink: 0.8
+      log_g0:
+        raw: "log_ginf"
+        cbar_title: "$\\log \\mathrm{G}_{0}$"
+        p: 2
         cbar_kwargs:
           aspect: 8
           shrink: 0.8

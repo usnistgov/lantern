@@ -164,7 +164,13 @@ rule calibration_interval_diagnostic:
         import util
         import src.calibration
 
-        D = len(get(config, f"{wildcards.dataset}/phenotypes/{wildcards.phenotype}"))
+        # phenotypes = get(config, f"{wildcards.dataset}/phenotypes/{wildcards.phenotype}")
+        phenotypes = list(
+            get(
+                config, f"figures/surface/{wildcards.dataset}-{wildcards.phenotype}"
+            ).keys()
+        )
+        D = len(phenotypes)
 
         df, ds, model = util.load_run(wildcards.dataset, wildcards.phenotype, "lantern", "full", 8,)
         loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
@@ -181,16 +187,26 @@ rule calibration_interval_diagnostic:
         maps = []
         for d in range(D):
 
+            target = phenotypes[d]
+            raw = get(
+                config,
+                f"figures/surface/{wildcards.dataset}-{wildcards.phenotype}/{target}/raw",
+                default=None,
+            )
+
+            mu = df[raw].mean() if raw is not None else 0
+            std = df[raw].std() if raw is not None else 1
+
             # balanced sampling
             ax = plt.subplot(2, D, d+D+1)
             # ax = plt.subplot(2, 2, d + 1)
             axes.append(ax)
-            ind, yweight, ycount = src.calibration.balanced_sample(df[f"y{d}"])
+            ind, yweight, ycount = src.calibration.balanced_sample(df[f"y{d}"]*std + mu)
 
             # values
-            y = df[f"y{d}"].values[ind]
-            ymu = ypred.mean()[ind, d]
-            yrange = ypred.std()[ind, d] * 2
+            y = df[f"y{d}"].values[ind]*std + mu
+            ymu = ypred.mean()[ind, d]*std + mu
+            yrange = ypred.std()[ind, d] * 2*std
 
             # colros
             norm = mpl.colors.LogNorm(
@@ -207,8 +223,8 @@ rule calibration_interval_diagnostic:
                     y[i], ymu[i], yrange[i], ls="None", marker="o", color=color[i, :]
                 )
 
-            mn = df[f"y{d}"].min()
-            mx = df[f"y{d}"].max()
+            mn = (df[f"y{d}"]*std + mu).min()
+            mx = (df[f"y{d}"]*std + mu).max()
             rng = mx - mn
             plt.plot([mn - 0.1*rng, mx + 0.1*rng], [mn - 0.1*rng, mx + 0.1*rng], c="r")
             if d == 0:
@@ -224,9 +240,9 @@ rule calibration_interval_diagnostic:
             ind = np.random.choice(np.arange(df.shape[0]), 100, replace=False)
 
             # values
-            y = df[f"y{d}"].values[ind]
-            ymu = ypred.mean()[ind, d]
-            yrange = ypred.std()[ind, d] * 2
+            y = df[f"y{d}"].values[ind]*std + mu
+            ymu = ypred.mean()[ind, d] * std + mu
+            yrange = ypred.std()[ind, d] * 2 * std
 
             # colros
             norm = mpl.colors.LogNorm(
@@ -243,13 +259,12 @@ rule calibration_interval_diagnostic:
                     y[i], ymu[i], yrange[i], ls="None", marker="o", color=color[i, :]
                 )
 
-            mn = df[f"y{d}"].min()
-            mx = df[f"y{d}"].max()
+            mn = (df[f"y{d}"] * std + mu).min()
+            mx = (df[f"y{d}"] * std + mu).max()
             rng = mx - mn
             plt.plot([mn - 0.1*rng, mx + 0.1*rng], [mn - 0.1*rng, mx + 0.1*rng], c="r")
             if d == 0:
                 plt.ylabel("predicted")
-
 
         for d in range(D):
             cb = fig.colorbar(

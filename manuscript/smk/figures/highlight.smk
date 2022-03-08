@@ -1507,3 +1507,147 @@ rule covid_bind_surface_zk:
         plt.tight_layout()
         plt.savefig(output[0], bbox_inches="tight", transparent=False)
 
+rule allostery_rotate:
+    input:
+        "data/processed/allostery2.csv",
+        "data/processed/allostery2-joint.pkl",
+        "experiments/allostery2-joint/lantern/full/model.pt"
+    output:
+        "figures/allostery2-joint/ec50/rotation-actual.png",
+        "figures/allostery2-joint/ginf/rotation-actual.png",
+        "figures/allostery2-joint/g0/rotation-actual.png",
+        "figures/allostery2-joint/ec50/rotation-residual.png",
+        "figures/allostery2-joint/ginf/rotation-residual.png",
+        "figures/allostery2-joint/g0/rotation-residual.png",
+    run:
+
+        from src.allostery import ec50, ginf, g0, delta_eps_AI_0, delta_eps_RA_0
+
+        df, ds, model = util.load_run("allostery2", "joint", "lantern", "full", 8,)
+        
+        p1 = np.linspace(df.eps_AI_shift.min(), df.eps_AI_shift.max())
+        p2 = np.linspace(df.eps_RA_shift.min(), df.eps_RA_shift.max())
+
+        # build prediction surface in biophysical space
+        P1, P2 = np.meshgrid(p1, p2)
+        surface = np.concatenate(
+            (P1.reshape((2500, 1)), P2.reshape((2500, 1))),
+            axis=1
+        )
+
+        # how to go from biophysical to learned space
+        with torch.no_grad():
+            _X = ds[:len(ds)][0]
+            X = model.basis(_X).numpy()
+
+        y1 = df.eps_AI_shift.values
+        y2 = df.eps_RA_shift.values
+
+        y = df[
+            ["eps_AI_shift", "eps_RA_shift"]
+        ].values
+
+        V, _, _, _ = np.linalg.lstsq(y, X - X.mean(axis=0), rcond=None)
+
+        # setup prediction
+        d0, d1 = model.basis.order[:2]
+
+        Zpred = torch.zeros(2500, 8)
+
+        # make latent values from linear relationship
+        tmp = np.dot(surface, V) + X.mean(axis=0)
+        # Zpred[:, d0] = torch.from_numpy(tmp[:, 0])
+        # Zpred[:, d1] = torch.from_numpy(tmp[:, 1])
+        Zpred[:, d0] = torch.from_numpy(tmp[:, d0])
+        Zpred[:, d1] = torch.from_numpy(tmp[:, d1])
+
+        with torch.no_grad():
+            fpred = model.surface(Zpred)
+
+        # scale to make visible
+        Vn = 50*V
+
+        for i, (fxn, label) in enumerate(
+            [
+                (ec50, r"$\mathrm{EC}_{50}$"),
+                (ginf, r"$\mathrm{G}_{\infty}$"),
+                (g0, r"$\mathrm{G}_{0}$"),
+            ]
+        ):
+
+            # Rotated view
+
+            param = np.log10(
+                fxn(
+                    delta_eps_AI=surface[:, 0] + delta_eps_AI_0,
+                    delta_eps_RA=surface[:, 1] + delta_eps_RA_0,
+                )
+            ).reshape(50, 50)
+
+            pred = fpred.mean[:, i].numpy().reshape((50, 50))
+
+            fig = plt.figure(figsize=(3, 2.5), dpi=300)
+            im = plt.imshow(
+                param,
+                aspect="auto",
+                interpolation="lanczos",
+                extent=(P1.min(), P1.max(), P2.min(), P2.max()),
+                origin="lower",
+                vmin=min(param.min(), pred.min()),
+                vmax=max(param.max(), pred.max()),
+            )
+            plt.contour(
+                P1,
+                P2,
+                pred,
+                vmin=min(param.min(), pred.min()),
+                vmax=max(param.max(), pred.max()),
+            )
+
+            plt.arrow(0, 0, Vn[0, d0], Vn[1, d0], width=0.2, zorder=100)
+            plt.text(Vn[0, d0], 0.8 * Vn[1, d0], "$z_1$", color="k")
+
+            plt.arrow(0, 0, Vn[0, d1], Vn[1, d1], width=0.2, zorder=100)
+            plt.text(Vn[0, d1] * 1.5, 0.6 * Vn[1, d1], "$z_2$", color="k")
+
+            plt.xlabel("$\Delta \epsilon_{AI}$")
+            plt.ylabel("$\Delta \epsilon_{RA}$")
+            fig.colorbar(im)
+            plt.title(label)
+
+            plt.tight_layout()
+            plt.savefig(output[i], bbox_inches="tight", transparent=False)
+
+            # Residual view
+            fig, ax = plt.subplots(figsize=(4, 2), dpi=300)
+            _, _, _, im = plt.hist2d(y1, y2, bins=30, norm=mpl.colors.LogNorm(), cmap="Greens")
+
+            resid = (pred - param) ** 2
+            cim = plt.contour(
+                P1,
+                P2,
+                resid,
+                levels=10,
+                cmap="plasma"
+            )
+
+            norm = mpl.colors.Normalize(vmin=resid.min(), vmax=resid.max())
+            sm = plt.cm.ScalarMappable(norm=norm, cmap=cim.cmap)
+            sm.set_array([])
+            fig.colorbar(sm, pad=0.24, aspect=5)
+            fig.axes[-1].set_title("residual", ha="left", loc="left")
+
+            plt.arrow(0, 0, Vn[0, d0], Vn[1, d0], width=0.2, zorder=100)
+            plt.text(Vn[0, d0], 0.8 * Vn[1, d0], "$z_1$", color="k")
+
+            plt.arrow(0, 0, Vn[0, d1], Vn[1, d1], width=0.2, zorder=100)
+            plt.text(Vn[0, d1] * 1.5, 0.6 * Vn[1, d1], "$z_2$", color="k")
+
+            plt.xlabel("$\Delta \epsilon_{AI}$")
+            plt.ylabel("$\Delta \epsilon_{RA}$")
+            fig.colorbar(im, pad=0.05, aspect=5)
+            fig.axes[-1].set_title("observation\ncount", ha="left", loc="left")
+
+            ax.set_facecolor("Grey")
+
+            plt.savefig(output[i+3], bbox_inches="tight", transparent=False)
