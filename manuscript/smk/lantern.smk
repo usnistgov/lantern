@@ -14,7 +14,9 @@ import numpy as np
 import pandas as pd
 import mlflow
 from torch.utils.data import DataLoader
+import gpytorch
 
+from lantern.loss.elbo_gp import ELBO_GP
 from lantern.dataset import Dataset
 from lantern.model import Model
 from lantern.model.basis import VariationalBasis
@@ -245,8 +247,8 @@ rule lantern_full:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
     output:
-        "experiments/{ds}-{phenotype}/lantern/full{rerun,(-r.*)?}{kernel,(-kern-.*)?}/model.pt",
-        "experiments/{ds}-{phenotype}/lantern/full{rerun,(-r.*)?}{kernel,(-kern-.*)?}/loss.pt"
+        "experiments/{ds}-{phenotype}/lantern/full{rerun,(-r.*)?}{kernel,(-kern-.*)?}{pll,(-pll)?}/model.pt",
+        "experiments/{ds}-{phenotype}/lantern/full{rerun,(-r.*)?}{kernel,(-kern-.*)?}{pll,(-pll)?}/loss.pt"
     resources:
         gres="gpu:1",
         partition="singlegpu",
@@ -301,7 +303,15 @@ rule lantern_full:
                 # Phenotype.fromDataset(ds, dsget("K", 8)),
             )
 
-        loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
+        if wildcards.pll == "":
+            loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
+        else:
+            loss = model.basis.loss(N=len(ds),) + ELBO_GP.fromGP(
+                model.surface,
+                len(ds),
+                objective=gpytorch.mlls.PredictiveLogLikelihood,
+                sigma_hoc=ds.errors is not None,
+            )
 
         if dsget("cuda", True) and torch.cuda.is_available():
             model = model.cuda()
@@ -428,6 +438,7 @@ rule lantern_prediction:
                     size=dsget("lantern/prediction/size", default=32),
                     pbar=dsget("lantern/prediction/pbar", default=True),
                     uncertainty=True,
+                    basis=True,
                 ),
             )
 

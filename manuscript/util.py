@@ -216,13 +216,19 @@ def plotLandscape(
             interpolation="lanczos",
         )
     if showInterval:
+        interval = 4 * np.sqrt(fvar.reshape(Z1.shape))
+        if log:
+            interval = np.power(10, interval)
         interval_im = ax.imshow(
-            4 * np.sqrt(fvar.reshape(Z1.shape)),
+            interval,
             extent=(Z1.min(), Z1.max(), Z2.min(), Z2.max()),
             origin="lower",
             aspect="auto",
             cmap="Greys",
             interpolation="lanczos",
+            norm=mpl.colors.LogNorm(vmin=interval.min(), vmax=interval.max())
+            if log
+            else None,
         )
 
     im = ax.contour(
