@@ -4,77 +4,78 @@ rule globalep_compare:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
         "experiments/{ds}-{phenotype}/lantern/full/model.pt",
-        "experiments/{ds}-{target}/globalep/cv0/model.pkl",
+        "experiments/{ds}-{phenotype}/globalep/cv0/model.pkl",
     output:
-        "figures/{ds}-{phenotype}/{target}/globalep-compare.png"
+        "figures/{ds}-{phenotype}/globalep-compare.png"
     run:
         from scipy.stats import pearsonr
 
-        alpha = get(
-            config,
-            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha",
-            default=0.01,
-        )
+        # alpha = get(
+        #     config,
+        #     f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/alpha",
+        #     default=0.01,
+        # )
         raw = get(
             config,
-            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/raw",
+            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.phenotype}/raw",
             default=None,
         )
-        log = get(
-            config,
-            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/log",
-            default=False,
-        )
-        p = get(
-            config,
-            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/p",
-            default=0,
-        )
-        image = get(
-            config,
-            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/image",
-            default=False,
-        )
-        scatter = get(
-            config,
-            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/scatter",
-            default=True,
-        )
-        mask = get(
-            config,
-            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/mask",
-            default=False,
-        )
-        cbar_kwargs = get(
-            config,
-            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_kwargs",
-            default={},
-        )
-        fig_kwargs = get(
-            config,
-            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/fig_kwargs",
-            default=dict(dpi=300, figsize=(4, 3)),
-        )
-        cbar_title = get(
-            config,
-            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_title",
-            default=None,
-        )
-        plot_kwargs = get(
-            config,
-            f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/plot_kwargs",
-            default={},
-        )
-        zdim = get(
-            config,
-            f"figures/effects/{wildcards.ds}-{wildcards.phenotype}/zdim",
-        )
+        # log = get(
+        #     config,
+        #     f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/log",
+        #     default=False,
+        # )
+        # p = get(
+        #     config,
+        #     f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/p",
+        #     default=0,
+        # )
+        # image = get(
+        #     config,
+        #     f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/image",
+        #     default=False,
+        # )
+        # scatter = get(
+        #     config,
+        #     f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/scatter",
+        #     default=True,
+        # )
+        # mask = get(
+        #     config,
+        #     f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/mask",
+        #     default=False,
+        # )
+        # cbar_kwargs = get(
+        #     config,
+        #     f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_kwargs",
+        #     default={},
+        # )
+        # fig_kwargs = get(
+        #     config,
+        #     f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/fig_kwargs",
+        #     default=dict(dpi=300, figsize=(4, 3)),
+        # )
+        # cbar_title = get(
+        #     config,
+        #     f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/cbar_title",
+        #     default=None,
+        # )
+        # plot_kwargs = get(
+        #     config,
+        #     f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{wildcards.target}/plot_kwargs",
+        #     default={},
+        # )
+        # zdim = get(
+        #     config,
+        #     f"figures/effects/{wildcards.ds}-{wildcards.phenotype}/zdim",
+        # )
 
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
 
         correlation = True
+        p = 0
 
         df, ds, model = util.load_run(
             wildcards.ds,

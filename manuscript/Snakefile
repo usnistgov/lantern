@@ -61,6 +61,7 @@ include: "smk/figures/affine.smk"
 include: "smk/figures/sparse.smk"
 include: "smk/figures/uncertainty.smk"
 include: "smk/figures/gfp-maxima.smk"
+include: "smk/figures/compare.smk"
 
 rule data:
     input:
@@ -200,10 +201,13 @@ rule exp_figures:
             dstarg=[
                 "allostery1-joint/log_ec50",
                 "allostery2-joint/log_ec50",
+                "allostery2-joint/log_ginf",
+                "allostery2-joint/log_g0",
                 "allostery3-joint/log_ec50",
             ],
             fig=[
                 "surface",
+                "surface-uncrop",
                 # "gradient",
                 # "robustness",
                 # "robustness-distance",
@@ -297,6 +301,19 @@ rule exp_figures:
                 "dimensions-ks",
             ],
             r = range(1, 3),
+        ),
+        expand(
+            "figures/{dstarg}/{fig}.png",
+            dstarg=[
+                "laci-ec50",
+                "laci-ginf",
+                "covid-exp",
+                "covid-bind",
+                "gfp-brightness",
+            ],
+            fig=[
+                "globalep-compare",
+            ],
         ),
 
         expand(
