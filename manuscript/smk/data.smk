@@ -171,12 +171,6 @@ rule laci_data:
                 "ec50",
                 "ginf",
                 "g0",
-                "Low Level",
-                "Low Level error",
-                "High Level",
-                "High Level error",
-                "IC50",
-                "IC50 error",
             ]
             + [f"{param}-std" for param in ["ec50", "ginf", "g0"]]
             + [f"{param}-var" for param in ["ec50", "ginf", "g0"]]

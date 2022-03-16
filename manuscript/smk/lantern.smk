@@ -1,6 +1,8 @@
 from functools import partial
 import pickle
 import os
+from collections import defaultdict
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -12,7 +14,9 @@ import numpy as np
 import pandas as pd
 import mlflow
 from torch.utils.data import DataLoader
+import gpytorch
 
+from lantern.loss.elbo_gp import ELBO_GP
 from lantern.dataset import Dataset
 from lantern.model import Model
 from lantern.model.basis import VariationalBasis
@@ -35,17 +39,24 @@ def train_lantern(
             mlflow.log_param("batch-size", tloader.batch_size)
 
             pbar = tqdm(range(epochs),)
+            record = defaultdict(list)
             for e in pbar:
 
                 # logging of loss values
                 tloss = 0
                 vloss = 0
 
+                # store total loss terms
+                terms = defaultdict(list)
+
                 # go through minibatches
                 for btch in tloader:
                     optimizer.zero_grad()
                     yhat = model(btch[0])
                     lss = loss(yhat, *btch[1:])
+
+                    for k, v in lss.items():
+                        terms["{}-train".format(k)].append(v.item())
 
                     total = sum(lss.values())
                     total.backward()
@@ -59,8 +70,16 @@ def train_lantern(
                         yhat = model(btch[0])
                         lss = loss(yhat, *btch[1:])
 
+                        for k, v in lss.items():
+                            terms["{}-validation".format(k)].append(v.item())
+
                         total = sum(lss.values())
                         vloss += total.item()
+
+                # update record
+                record["epoch"].append(e)
+                for k, v in terms.items():
+                    record[k].append(np.mean(v))
 
                 # update log
                 pbar.set_postfix(
@@ -69,7 +88,9 @@ def train_lantern(
                 )
 
                 mlflow.log_metric("training-loss", tloss / len(tloader), step=e)
-                mlflow.log_metric("validation-loss", vloss / len(vloader), step=e)
+
+                if len(vloader):
+                    mlflow.log_metric("validation-loss", vloss / len(vloader), step=e)
 
                 qalpha = model.basis.qalpha(detach=True)
                 for k in range(model.basis.K):
@@ -106,6 +127,8 @@ def train_lantern(
         torch.save(loss.state_dict(), os.path.join(base, "loss-error.pt"))
         raise e
 
+    return pd.DataFrame(record)
+
 rule lantern_cv:
     input:
         "data/processed/{ds}.csv",
@@ -113,6 +136,10 @@ rule lantern_cv:
     output:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}/model.pt",
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}/loss.pt"
+    resources:
+        gres="gpu:1",
+        partition="singlegpu",
+        time = "24:00:00",
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -220,10 +247,15 @@ rule lantern_full:
         "data/processed/{ds}.csv",
         "data/processed/{ds}-{phenotype}.pkl",
     output:
-        "experiments/{ds}-{phenotype}/lantern/full/model.pt",
-        "experiments/{ds}-{phenotype}/lantern/full/loss.pt"
+        "experiments/{ds}-{phenotype}/lantern/full{rerun,(-r.*)?}{kernel,(-kern-.*)?}{pll,(-pll)?}/model.pt",
+        "experiments/{ds}-{phenotype}/lantern/full{rerun,(-r.*)?}{kernel,(-kern-.*)?}{pll,(-pll)?}/loss.pt"
+    resources:
+        gres="gpu:1",
+        partition="singlegpu",
+        time = "24:00:00",
     group: "train"
     run:
+        from gpytorch.kernels import RBFKernel, RQKernel, MaternKernel, ScaleKernel
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
@@ -232,15 +264,56 @@ rule lantern_full:
         df = pd.read_csv(input[0])
         ds = pickle.load(open(input[1], "rb"))
 
-        # Build model and loss
-        model = Model(
-            VariationalBasis.fromDataset(ds, dsget("K", 8)),
-            Phenotype.fromDataset(ds, dsget("K", 8)),
-        )
+        # build kernel if necessary
+        kernel = None
+        if wildcards.kernel != "":
+            D = ds.D
+            baseKern = {
+                "rbf": RBFKernel,
+                "matern": MaternKernel,
+                "rq": RQKernel,
+            }[wildcards.kernel.split("-")[-1]]
 
-        loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
+            # base component
+            if D > 1:
+                kernel = baseKern(ard_num_dims=4, batch_shape=torch.Size([D]))
+            else:
+                kernel = baseKern(ard_num_dims=4)
+            if kernel.has_lengthscale:
+                kernel.raw_lengthscale.requires_grad = False
 
-        if dsget("cuda", True):
+            # scale component
+            if D > 1:
+                kernel = ScaleKernel(kernel, batch_shape=torch.Size([D]))
+            else:
+                kernel = ScaleKernel(kernel)
+
+            # Build model and loss
+            model = Model(
+                VariationalBasis.fromDataset(ds, 4),
+                Phenotype.fromDataset(ds, 4, kernel=kernel),
+                # Phenotype.fromDataset(ds, dsget("K", 8)),
+            )
+        
+        else:
+            # Build model and loss
+            model = Model(
+                VariationalBasis.fromDataset(ds, dsget("K", 8)),
+                Phenotype.fromDataset(ds, dsget("K", 8), kernel=kernel),
+                # Phenotype.fromDataset(ds, dsget("K", 8)),
+            )
+
+        if wildcards.pll == "":
+            loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
+        else:
+            loss = model.basis.loss(N=len(ds),) + ELBO_GP.fromGP(
+                model.surface,
+                len(ds),
+                objective=gpytorch.mlls.PredictiveLogLikelihood,
+                sigma_hoc=ds.errors is not None,
+            )
+
+        if dsget("cuda", True) and torch.cuda.is_available():
             model = model.cuda()
             loss = loss.cuda()
             ds.to("cuda")
@@ -317,6 +390,9 @@ rule lantern_prediction:
     output:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}/pred-val.csv"
     group: "predict"
+    resources:
+        gres="gpu:1",
+        partition="batch",
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -361,6 +437,8 @@ rule lantern_prediction:
                     cuda=CUDA,
                     size=dsget("lantern/prediction/size", default=32),
                     pbar=dsget("lantern/prediction/pbar", default=True),
+                    uncertainty=True,
+                    basis=True,
                 ),
             )
 
@@ -372,6 +450,10 @@ rule lantern_cv_size:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}-n{n}/model.pt",
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}-n{n}/loss.pt"
     group: "train"
+    resources:
+        gres="gpu:1",
+        partition="singlegpu",
+        time = "24:00:00",
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -439,6 +521,9 @@ rule lantern_prediction_size:
     output:
         "experiments/{ds}-{phenotype}/lantern/cv{cv,\d+}-n{n}/pred-val.csv"
     group: "predict"
+    resources:
+        gres="gpu:1",
+        partition="batch",
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -484,3 +569,515 @@ rule lantern_prediction_size:
                     pbar=dsget("lantern/prediction/pbar", default=True),
                 ),
             )
+
+rule lantern_cv_k:
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+    output:
+        "experiments/{ds}-{phenotype}/lantern-K{k,\d+}/cv{cv,\d+}/model.pt",
+        "experiments/{ds}-{phenotype}/lantern-K{k,\d+}/cv{cv,\d+}/loss.pt"
+    resources:
+        gres="gpu:1",
+        partition="batch",
+        time = "24:00:00",
+    run:
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+
+        # Load the dataset
+        df = pd.read_csv(input[0])
+        ds = pickle.load(open(input[1], "rb"))
+
+        # Build model and loss
+        model = Model(
+            VariationalBasis.fromDataset(ds, int(wildcards.k), meanEffectsInit=False),
+            Phenotype.fromDataset(ds, int(wildcards.k))
+        )
+
+        # Setup training infrastructure
+        train = Subset(ds, np.where(df.cv != float(wildcards.cv))[0])
+        validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
+        tloader = DataLoader(
+            train, batch_size=dsget("lantern/batch-size", default=8192)
+        )
+        vloader = DataLoader(
+            validation, batch_size=dsget("lantern/batch-size", default=8192)
+        )
+
+        loss = model.loss(N=len(train), sigma_hoc=ds.errors is not None)
+
+        if dsget("cuda", True):
+            model = model.cuda()
+            loss = loss.cuda()
+            ds.to("cuda")
+
+        optimizer = Adam(loss.parameters(), lr=dsget("lantern/lr", default=0.01))
+
+        mlflow.set_experiment(f"lantern cross-validation K={wildcards.k}")
+
+        lr = dsget("lantern/lr", default=0.01)
+        epochs = dsget("lantern/epochs", default=5000)
+
+        train_lantern(
+            input,
+            output,
+            wildcards,
+            tloader,
+            vloader,
+            optimizer,
+            loss,
+            model,
+            lr,
+            epochs,
+        )
+
+
+rule lantern_prediction_cv_k:
+    input:
+        "data/processed/{ds}.csv",
+        "data/processed/{ds}-{phenotype}.pkl",
+        "experiments/{ds}-{phenotype}/lantern-K{k,\d+}/cv{cv,\d+}/model.pt"
+    output:
+        "experiments/{ds}-{phenotype}/lantern-K{k,\d+}/cv{cv,\d+}/pred-val.csv"
+    group: "predict"
+    resources:
+        gres="gpu:1",
+        partition="singlegpu",
+    run:
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+
+        CUDA = dsget("lantern/prediction/cuda", default=True) and torch.cuda.is_available()
+
+        # Load the dataset
+        df = pd.read_csv(input[0])
+        ds = pickle.load(open(input[1], "rb"))
+
+        validation = Subset(ds, np.where(df.cv == float(wildcards.cv))[0])
+
+        # Build model and loss
+        model = Model(
+            VariationalBasis.fromDataset(ds, int(wildcards.k), meanEffectsInit=False),
+            Phenotype.fromDataset(ds, int(wildcards.k))
+        )
+
+        model.load_state_dict(torch.load(input[2], "cpu"))
+        model.eval()
+
+        if CUDA:
+            model = model.cuda()
+
+        def save(ofile, df, **kwargs):
+            for k, t in kwargs.items():
+                for i in range(t.shape[1]):
+                    df["{}{}".format(k, i)] = t[:, i]
+
+            df.to_csv(ofile, index=False)
+
+        with torch.no_grad():
+            save(
+                output[0],
+                df[df.cv == float(wildcards.cv)],
+                **predictions(
+                    ds.D,
+                    model,
+                    validation,
+                    cuda=CUDA,
+                    size=dsget("lantern/prediction/size", default=32),
+                    pbar=dsget("lantern/prediction/pbar", default=True),
+                ),
+            )
+
+rule lantern_affine:
+    input:
+        csv="data/processed/{ds}.csv",
+        ds="data/processed/{ds}-{phenotype}.pkl",
+        model="experiments/{ds}-{phenotype}/lantern/full/model.pt",
+        # loss="experiments/{ds}-{phenotype}/lantern/full/loss.pt",
+    output:
+        model="experiments/{ds}-{phenotype}/lantern/affine/{label}/model.pt",
+        loss="experiments/{ds}-{phenotype}/lantern/affine/{label}/loss.pt",
+        record="experiments/{ds}-{phenotype}/lantern/affine/{label}/history.csv",
+    resources:
+        gres="gpu:1",
+        partition="singlegpu",
+        time = "24:00:00",
+    run:
+        from src import affine
+
+        def dsget(pth, default):
+            """Get the configuration for the specific dataset"""
+            return get(config, f"{wildcards.ds}/{pth}", default=default)
+
+        # Load the dataset
+        df = pd.read_csv(input[0])
+        ds = pickle.load(open(input[1], "rb"))
+
+        # Build model and loss
+        model = Model(
+            VariationalBasis.fromDataset(ds, dsget("K", 8), meanEffectsInit=False),
+            Phenotype.fromDataset(ds, dsget("K", 8))
+        )
+
+        # Setup training infrastructure
+        tloader = DataLoader(ds, batch_size=dsget("lantern/batch-size", default=8192))
+
+        # empty validation, just to match interface
+        validation = Subset(ds, np.where(df.cv == -100)[0])
+        vloader = DataLoader(
+            validation, batch_size=dsget("lantern/batch-size", default=8192)
+        )
+
+        loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
+
+        # pre-load
+        model.load_state_dict(
+            torch.load(input.model, "cpu")
+        )
+        # loss.load_state_dict(
+        #     torch.load(input.loss, "cpu")
+        # )
+
+        # apply affine tranform
+        tcfgs = dsget(f"lantern/affine/{wildcards.label}/transformations", [])
+        transforms = []
+        i, j = model.basis.order[:2] # always on top two dimensions
+        for tc in tcfgs:
+            if tc["transform"] == "rotation":
+                transforms.append(
+                    affine.Rotation(model.basis.K, i, j, torch.tensor(tc["theta"]))
+                )
+            elif tc["transform"] == "scale":
+                transforms.append(
+                    affine.Scale(model.basis.K, i, j, torch.tensor(tc["si"]), torch.tensor(tc["sj"]))
+                )
+            elif tc["transform"] == "shear":
+                transforms.append(
+                    affine.Shear(model.basis.K, i, j, torch.tensor(tc["si"]), torch.tensor(tc["sj"]))
+                )
+            else:
+                raise ValueError("Unknown transform {}".format(tc["transform"]))
+        affine.transform(model, *transforms)
+
+        ##############################################################################
+        # plot resulting surface
+        model.eval()
+
+        targets = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}").keys()
+        for targ in targets:
+
+            alpha = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/alpha",
+                default=0.01,
+            )
+            raw = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/raw",
+                default=None,
+            )
+            log = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/log",
+                default=False,
+            )
+            p = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/p",
+                default=0,
+            )
+            image = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/image",
+                default=False,
+            )
+            scatter = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/scatter",
+                default=True,
+            )
+            mask = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/mask",
+                default=False,
+            )
+            cbar_kwargs = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/cbar_kwargs",
+                default={},
+            )
+            fig_kwargs = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/fig_kwargs",
+                default=dict(dpi=300, figsize=(4, 3)),
+            )
+            cbar_title = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/cbar_title",
+                default=None,
+            )
+            plot_kwargs = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/plot_kwargs",
+                default={},
+            )
+
+            z, fmu, fvar, Z1, Z2, y, Z = util.buildLandscape(
+                model,
+                ds,
+                mu=df[raw].mean() if raw is not None else 0,
+                std=df[raw].std() if raw is not None else 1,
+                log=log,
+                p=p,
+                alpha=alpha,
+            )
+
+            fig, norm, cmap, vrange = util.plotLandscape(
+                z,
+                fmu,
+                fvar,
+                Z1,
+                Z2,
+                log=log,
+                image=image,
+                mask=mask,
+                cbar_kwargs=cbar_kwargs,
+                fig_kwargs=fig_kwargs,
+                **plot_kwargs
+            )
+
+            if scatter:
+
+                plt.scatter(
+                    z[:, 0],
+                    z[:, 1],
+                    c=y,
+                    alpha=0.4,
+                    rasterized=True,
+                    vmin=vrange[0],
+                    vmax=vrange[1],
+                    norm=mpl.colors.LogNorm(vmin=vrange[0], vmax=vrange[1],) if log else None,
+                    s=0.3,
+                )
+
+                # reset limits
+                plt.xlim(
+                    np.quantile(z[:, 0], alpha / 2),
+                    np.quantile(z[:, 0], 1 - alpha / 2),
+                )
+                plt.ylim(
+                    np.quantile(z[:, 1], alpha / 2),
+                    np.quantile(z[:, 1], 1 - alpha / 2),
+                )
+
+            if cbar_title is not None:
+                fig.axes[-1].set_title(cbar_title, y=1.04, loc="left", ha="left")
+
+            os.makedirs(f"figures/{wildcards.ds}-{wildcards.phenotype}/affine/{wildcards.label}/", exist_ok=True)
+            plt.savefig(
+                f"figures/{wildcards.ds}-{wildcards.phenotype}/affine/{wildcards.label}/surface-{targ}-init.png",
+                bbox_inches="tight",
+            )
+
+        model.train()
+        # end surface plot
+        ##############################################################################
+
+        if dsget("cuda", True):
+            model = model.cuda()
+            loss = loss.cuda()
+            ds.to("cuda")
+
+        mlflow.set_experiment(f"lantern affine")
+
+        ##############################################################################
+        # pretrain liklihood
+
+        loss = model.surface.loss(N=len(ds), sigma_hoc=ds.errors is not None)
+        if dsget("cuda", True):
+            loss = loss.cuda()
+
+        prms = list(loss.mll.likelihood.parameters())
+        if ds.errors is not None:
+            prms.append(loss.raw_sigma_hoc)
+
+        optimizer = Adam(prms, lr=dsget("lantern/lr", default=0.01))
+
+        lr = dsget("lantern/lr", default=0.01)
+
+        wildcards.cv = -1
+        record = train_lantern(
+            input,
+            output,
+            wildcards,
+            tloader,
+            vloader,
+            optimizer,
+            loss,
+            model,
+            lr,
+            epochs=500,
+        )
+
+        ploss = loss
+
+        ##############################################################################
+
+        loss = model.loss(N=len(ds), sigma_hoc=ds.errors is not None)
+        if dsget("cuda", True):
+            loss = loss.cuda()
+
+        loss.losses[-1].load_state_dict(ploss.state_dict())
+
+        optimizer = Adam(loss.parameters(), lr=dsget("lantern/lr", default=0.01))
+
+        lr = dsget("lantern/lr", default=0.01)
+        epochs = dsget("lantern/epochs", default=5000)
+
+        wildcards.cv = -1
+        record = train_lantern(
+            input,
+            output,
+            wildcards,
+            tloader,
+            vloader,
+            optimizer,
+            loss,
+            model,
+            lr,
+            epochs,
+        )
+
+        record.to_csv(output.record)
+
+        ##############################################################################
+        # plot resulting surface
+        if dsget("cuda", True):
+            model = model.cpu()
+            loss = loss.cpu()
+            ds.to("cpu")
+
+        model.eval()
+
+        targets = get(config, f"figures/surface/{wildcards.ds}-{wildcards.phenotype}").keys()
+        for targ in targets:
+
+            alpha = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/alpha",
+                default=0.01,
+            )
+            raw = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/raw",
+                default=None,
+            )
+            log = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/log",
+                default=False,
+            )
+            p = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/p",
+                default=0,
+            )
+            image = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/image",
+                default=False,
+            )
+            scatter = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/scatter",
+                default=True,
+            )
+            mask = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/mask",
+                default=False,
+            )
+            cbar_kwargs = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/cbar_kwargs",
+                default={},
+            )
+            fig_kwargs = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/fig_kwargs",
+                default=dict(dpi=300, figsize=(4, 3)),
+            )
+            cbar_title = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/cbar_title",
+                default=None,
+            )
+            plot_kwargs = get(
+                config,
+                f"figures/surface/{wildcards.ds}-{wildcards.phenotype}/{targ}/plot_kwargs",
+                default={},
+            )
+
+            z, fmu, fvar, Z1, Z2, y, Z = util.buildLandscape(
+                model,
+                ds,
+                mu=df[raw].mean() if raw is not None else 0,
+                std=df[raw].std() if raw is not None else 1,
+                log=log,
+                p=p,
+                alpha=alpha,
+            )
+
+            fig, norm, cmap, vrange = util.plotLandscape(
+                z,
+                fmu,
+                fvar,
+                Z1,
+                Z2,
+                log=log,
+                image=image,
+                mask=mask,
+                cbar_kwargs=cbar_kwargs,
+                fig_kwargs=fig_kwargs,
+                **plot_kwargs
+            )
+
+            if scatter:
+
+                plt.scatter(
+                    z[:, 0],
+                    z[:, 1],
+                    c=y,
+                    alpha=0.4,
+                    rasterized=True,
+                    vmin=vrange[0],
+                    vmax=vrange[1],
+                    norm=mpl.colors.LogNorm(vmin=vrange[0], vmax=vrange[1],) if log else None,
+                    s=0.3,
+                )
+
+                # reset limits
+                plt.xlim(
+                    np.quantile(z[:, 0], alpha / 2),
+                    np.quantile(z[:, 0], 1 - alpha / 2),
+                )
+                plt.ylim(
+                    np.quantile(z[:, 1], alpha / 2),
+                    np.quantile(z[:, 1], 1 - alpha / 2),
+                )
+
+            if cbar_title is not None:
+                fig.axes[-1].set_title(cbar_title, y=1.04, loc="left", ha="left")
+
+            os.makedirs(f"figures/{wildcards.ds}-{wildcards.phenotype}/affine/{wildcards.label}/", exist_ok=True)
+            plt.savefig(
+                f"figures/{wildcards.ds}-{wildcards.phenotype}/affine/{wildcards.label}/surface-{targ}-final.png",
+                bbox_inches="tight",
+            )
+
+        model.train()
+        # end surface plot
+        ##############################################################################

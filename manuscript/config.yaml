@@ -1,6 +1,9 @@
 gfp:
   label: avGFP
   N: 45000
+
+  phenotype_labels:
+    - "brightness"
   
   phenotypes:
     brightness: ["phenotype"]
@@ -8,6 +11,24 @@ gfp:
   lantern:
     prediction:
       cuda: True
+
+    affine:
+      rotate-20:
+        transformations:
+          - transform: "rotation"
+            theta: 20.0 
+      shrink-z0:
+        transformations:
+          - transform: "scale"
+            si: 0.2
+            sj: 1.0
+      shear-z0:
+        transformations:
+          - transform: "shear"
+            si: 2.0
+            sj: 0.0
+              
+              
   
   feedforward:
     prediction:
@@ -18,6 +39,10 @@ gfp:
 laci:
   label: LacI
   N: 40000
+  
+  phenotype_labels:
+    - "$\\mathrm{EC}_{50}$"
+    - "$\\mathrm{G}_{\\infty}$"
   
   phenotypes:
     joint: ["ec50-norm", "ginf-norm"]
@@ -32,6 +57,22 @@ laci:
     prediction:
       cuda: True
   
+    affine:
+      rotate-20:
+        transformations:
+          - transform: "rotation"
+            theta: 20.0 
+      shrink-z0:
+        transformations:
+          - transform: "scale"
+            si: 0.2
+            sj: 1.0
+      shear-z0:
+        transformations:
+          - transform: "shear"
+            si: 5.0
+            sj: 0.0
+              
   feedforward:
     prediction:
       cuda: True
@@ -41,6 +82,10 @@ covid:
   step: 10000
   label: SARS-CoV-2
   substitutions: aa_substitutions
+  
+  phenotype_labels:
+    - "RBD $\\Delta \\log$MFI"
+    - "RBD-ACE2 $\\log_{10} K_d$"
   
   phenotypes:
     joint: ["func_score_norm_exp", "func_score_norm_bind"]
@@ -60,6 +105,95 @@ covid:
     prediction:
       cuda: True
 
+allostery1:
+
+  label: "$\\mathcal{D}_1$"
+
+  phenotypes:
+    joint: ["log_ec50_noise0.1", "log_ginf_noise0.1", "log_g0_noise0.1"]
+    noise0.01: ["log_ec50_noise0.01", "log_ginf_noise0.01", "log_g0_noise0.01"]
+
+allostery2:
+  label: "$\\mathcal{D}_2$"
+
+  phenotypes:
+    joint: ["log_ec50_noise0.1", "log_ginf_noise0.1", "log_g0_noise0.1"]
+    noise0.01: ["log_ec50_noise0.01", "log_ginf_noise0.01", "log_g0_noise0.01"]
+
+allostery3:
+  label: "$\\mathcal{D}_3$"
+
+  phenotypes:
+    joint: ["log_ec50_noise0.1", "log_ginf_noise0.1", "log_g0_noise0.1"]
+    noise0.01: ["log_ec50_noise0.01", "log_ginf_noise0.01", "log_g0_noise0.01"]
+
+simK1:
+  lantern:
+    epochs: 500
+simK2:
+  lantern:
+    epochs: 500
+simK4:
+  lantern:
+    epochs: 500
+simK6:
+  lantern:
+    epochs: 500
+simK8:
+  K: 10
+  lantern:
+    epochs: 500
+
+sigmoid:
+  K: 1
+  lantern:
+    epochs: 5000
+
+simulations:
+  K1:
+    K: 1
+    p: 1800
+    mutation_rate: 0.0025
+    N: 100000
+    sigma_y: 0.05
+
+  K2:
+    K: 2
+    p: 1800
+    mutation_rate: 0.0025
+    N: 100000
+    sigma_y: 0.05
+    lantern:
+      epochs: 5000
+
+  K4:
+    K: 4
+    p: 1800
+    mutation_rate: 0.0025
+    N: 100000
+    sigma_y: 0.05
+    lantern:
+      epochs: 500
+
+  K6:
+    K: 6
+    p: 300
+    mutation_rate: 0.015
+    N: 100000
+    sigma_y: 0.05
+    lantern:
+      epochs: 500
+
+  K8:
+    K: 8
+    p: 300
+    mutation_rate: 0.015
+    N: 100000
+    sigma_y: 0.05
+    lantern:
+      epochs: 500
+
+
 figures:
   surface:
     gfp-brightness:
@@ -69,13 +203,26 @@ figures:
         cbar_kwargs:
           aspect: 8
           shrink: 0.8
+        highlight:
+          peak1: [8.0, 12.8, -4.8, 0.8]
+          peak2: [6, 8, -2.5, 2.5]
+
+    laci-ec50:
+      ec50:
+        raw: "ec50"
+
+    laci-ginf:
+      ginf:
+        raw: "ginf"
 
     laci-joint:
       ec50:
         raw: "ec50"
         log: True
+        slice-alpha: 0.00
         fig_kwargs:
-          figsize: [5, 3]
+          # figsize: [5, 3]
+          dpi: 300
         cbar_title: "LacI\n$\\mathrm{EC}_{50}$"
         cbar_kwargs:
           aspect: 8
@@ -87,10 +234,12 @@ figures:
       ginf:
         raw: "ginf"
         log: True
+        slice-alpha: 0.00
         p: 1
         cbar_title: "LacI\n$\\mathrm{G}_{\\infty}$"
         fig_kwargs:
-          figsize: [5, 3]
+          # figsize: [5, 3]
+          dpi: 300
         cbar_kwargs:
           aspect: 8
           shrink: 0.6
@@ -98,6 +247,13 @@ figures:
           log_tick_subs: [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0]
           levels: 10
 
+    covid-exp:
+      exp:
+        raw: "func_score_exp"
+
+    covid-bind:
+      bind:
+        raw: "func_score_bind"
 
     covid-joint:
       exp:
@@ -111,6 +267,58 @@ figures:
         raw: "func_score_bind"
         p: 1
         cbar_title: "RBD-ACE2\n$\\log_{10} K_d$"
+        cbar_kwargs:
+          aspect: 8
+          shrink: 0.8
+
+    allostery1-joint:
+      log_ec50:
+        raw: "log_ec50"
+        cbar_title: "$\\log \\mathrm{EC}_{50}$"
+        cbar_kwargs:
+          aspect: 8
+          shrink: 0.8
+
+    allostery2-joint:
+      log_ec50:
+        raw: "log_ec50"
+        cbar_title: "$\\log \\mathrm{EC}_{50}$"
+        cbar_kwargs:
+          aspect: 8
+          shrink: 0.8
+      log_ginf:
+        raw: "log_ginf"
+        p: 1
+        cbar_title: "$\\log \\mathrm{G}_{\\infty}$"
+        cbar_kwargs:
+          aspect: 8
+          shrink: 0.8
+      log_g0:
+        raw: "log_ginf"
+        p: 2
+        cbar_title: "$\\log \\mathrm{G}_{0}$"
+        cbar_kwargs:
+          aspect: 8
+          shrink: 0.8
+
+    allostery3-joint:
+      log_ec50:
+        raw: "log_ec50"
+        cbar_title: "$\\log \\mathrm{EC}_{50}$"
+        cbar_kwargs:
+          aspect: 8
+          shrink: 0.8
+      log_ginf:
+        raw: "log_ginf"
+        cbar_title: "$\\log \\mathrm{G}_{\\infty}$"
+        p: 1
+        cbar_kwargs:
+          aspect: 8
+          shrink: 0.8
+      log_g0:
+        raw: "log_ginf"
+        cbar_title: "$\\log \\mathrm{G}_{0}$"
+        p: 2
         cbar_kwargs:
           aspect: 8
           shrink: 0.8
@@ -143,3 +351,63 @@ figures:
         cbar_kwargs:
           pad: 0.1
         cbar_title: "SARS-CoV-2\nRBD-ACE2\n$\\log_{10} K_d$"
+
+  sir:
+    gfp-brightness:
+      brightness:
+        phenotype_name: "avGFP Brightness"
+        raw: "medianBrightness"
+        zdim: 3
+        wdim: 3
+
+    laci-joint:
+      ec50:
+        zdim: 3
+        wdim: 3
+        phenotype_name: "LacI $\\mathrm{EC}_{50}$"
+        raw: "ec50"
+
+      ginf:
+        zdim: 3
+        wdim: 3
+        p: 1
+        phenotype_name: "LacI $\\mathrm{G}_{\\infty}$"
+        raw: "ginf"
+
+    covid-joint:
+      exp:
+        zdim: 5
+        wdim: 5
+        raw: "func_score_exp"
+        phenotype_name: "RBD $\\Delta \\log$MFI"
+
+      bind:
+        zdim: 5
+        wdim: 5
+        p: 1
+        raw: "func_score_bind"
+        phenotype_name: "RBD-ACE2 $\\log_{10} K_d$"
+
+  effects:
+    gfp-brightness:
+      zdim: 3
+
+    laci-joint:
+      zdim: 3
+
+    covid-joint:
+      zdim: 5
+
+    allostery1-joint:
+      zdim: 1
+
+    allostery2-joint:
+      zdim: 2
+
+    allostery3-joint:
+      zdim: 3
+
+  dimensions:
+    laci-joint:
+      useDims: null
+      maxDist: null

@@ -14,17 +14,16 @@ from lantern.model import Model
 
 def predictions(
     D,
-    model: Model,
+    model,
     dataset,
     size=32,
     cuda=False,
     pbar=False,
     uncertainty=False,
     dimScan=False,
+    basis=False,
+    diffops=False,
 ):
-
-    embed = hasattr(model, "L")
-    diffops = False  # isinstance(model, LatentLinearGPBayes) and model.D == 1
 
     # prep for predictions
     loader = DataLoader(dataset, size)
@@ -49,14 +48,14 @@ def predictions(
         )
         dims = model.embed.variance_order[:dims]
 
-    if embed:
-        z = torch.zeros(len(dataset), model.L)
+    if basis:
+        z = torch.zeros(len(dataset), model.basis.K)
 
     if cuda:
         yhat = yhat.cuda()
         y = y.cuda()
         lp = lp.cuda()
-        if embed:
+        if basis:
             z = z.cuda()
         yhat_std = yhat_std.cuda()
 
@@ -81,8 +80,8 @@ def predictions(
         with torch.no_grad():
             _yh = model(_x)
 
-            if embed:
-                _z = model.embed(_x)
+            if basis:
+                _z = model.basis(_x)
                 if isinstance(_z, tuple):
                     _z = _z[0]
 
@@ -95,7 +94,7 @@ def predictions(
                 tmp = torch.zeros(Nsamp, *_y.shape)
                 model.train()
                 for n in range(Nsamp):
-                    f, _ = model(_x)
+                    f = model(_x)
                     samp = f.sample()
                     if samp.ndim == 1:
                         samp = samp[:, None]
@@ -159,7 +158,7 @@ def predictions(
         y[i : len(_y) + i, :] = _y
         yhat[i : len(_y) + i, :] = _yh
 
-        if embed:
+        if basis:
             z[i : len(_y) + i, :] = _z
 
         if diffops:
@@ -185,9 +184,8 @@ def predictions(
     lp = lp.cpu().numpy()
     noise = noise.cpu().numpy()
 
-    if embed:
-        if hasattr(model.embed, "variance_order"):
-            z = z[:, model.embed.variance_order]
+    if basis:
+        z = z[:, model.basis.order]
         z = z.cpu().numpy()
 
     if diffops:
@@ -199,7 +197,7 @@ def predictions(
     # ret = dict(y=y, yhat=yhat, logprob=lp, noise=noise,)
     ret = dict(y=y, yhat=yhat, noise=noise,)
 
-    if embed:
+    if basis:
         ret["z"] = z
 
     if diffops:
@@ -250,3 +248,177 @@ def cv_scores(pths, func_score=False, noiseless=False, i=0, metric=r2_score):
         )
 
     return __scores
+
+
+def logprob_scan(
+    D, K, model, likelihood, dataset, size=32, resample=1, cuda=False, pbar=False,
+):
+
+    # prep for predictions
+    loader = DataLoader(dataset, size)
+    lp = torch.zeros(len(dataset), D * (K + 1))
+    lps = torch.zeros(len(dataset), D * (K + 1))
+
+    if cuda:
+        lp = lp.cuda()
+        lps = lps.cuda()
+        model = model.cuda()
+        likelihood = likelihood.cuda()
+
+    # loop over data and generate predictions
+    i = 0
+    loop = tqdm(loader) if pbar else loader
+    for btch in loop:
+        _x, _y = btch[:2]
+        if _y.ndim == 1:
+            _y = _y[:, [0]]
+
+        _x = _x.float()
+        _n = btch[2] if len(btch) > 2 else torch.zeros_like(_y)
+        if cuda:
+            _x = _x.cuda()
+            _y = _y.cuda()
+            _n = _n.cuda()
+
+        with torch.no_grad():
+            # _z = model.basis(_x)
+
+            for k in range(0, K + 1):
+
+                samp = torch.zeros(len(_y), D, resample)
+
+                for r in range(resample):
+                    _z = model.basis(_x)
+                    zpred = torch.zeros_like(_z)
+
+                    if cuda:
+                        zpred = zpred.cuda()
+                    for kk in model.basis.order[:k]:
+                        zpred[:, kk] = _z[:, kk]
+
+                    _yh = model.surface(zpred)
+
+                    tmp = _yh.__class__(
+                        _yh.mean,
+                        likelihood._shaped_noise_covar(
+                            _yh.mean.shape, noise=_n.reshape(-1)
+                        )
+                        + _yh.covariance_matrix,
+                    )
+
+                    norm = torch.distributions.Normal(
+                        _yh.mean.view(-1, D), torch.sqrt(tmp.variance.view(-1, D))
+                    )
+
+                    samp[:, :, r] = norm.log_prob(_y).detach().view(-1, D)
+                    # samp[:, :, r] = (_y - _yh.mean) ** 2
+
+                # _lp = norm.log_prob(_y).detach()
+                # _lp = _lp.view(-1, D)
+                _lp = torch.mean(samp, dim=2)
+
+                lp[i : len(_y) + i, k * D : (k + 1) * D] = _lp
+                lps[i : len(_y) + i, k * D : (k + 1) * D] = torch.std(samp, dim=2)
+
+        i += len(_x)
+
+    # prep for returning
+    lp = lp.cpu().numpy()
+    lps = lps.cpu().numpy()
+
+    ret = {}
+    for k in range(K + 1):
+        for d in range(D):
+            ret[f"lp{d}-k{k}"] = lp[:, k * D + d]
+            ret[f"lp{d}-k{k}-std"] = lps[:, k * D + d]
+
+    return pd.DataFrame(ret)
+
+
+def elbo_scan(
+    D, K, model, likelihood, dataset, size=32, resample=1, cuda=False, pbar=False,
+):
+
+    # prep for predictions
+    loader = DataLoader(dataset, size)
+    elbo = torch.zeros(len(dataset), D * (K + 1))
+    elbos = torch.zeros(len(dataset), D * (K + 1))
+
+    if cuda:
+        elbo = elbo.cuda()
+        elbos = elbos.cuda()
+        model = model.cuda()
+        likelihood = likelihood.cuda()
+
+    # loop over data and generate predictions
+    i = 0
+    loop = tqdm(loader) if pbar else loader
+    for btch in loop:
+        _x, _y = btch[:2]
+        if _y.ndim == 1:
+            _y = _y[:, [0]]
+
+        _x = _x.float()
+        _n = btch[2] if len(btch) > 2 else torch.zeros_like(_y)
+        if cuda:
+            _x = _x.cuda()
+            _y = _y.cuda()
+            _n = _n.cuda()
+
+        with torch.no_grad():
+            # _z = model.basis(_x)
+
+            for k in range(0, K + 1):
+
+                samp = torch.zeros(len(_y), resample)
+
+                for r in range(resample):
+                    klW, kla, _, _ = model.basis.kl_loss()
+                    _z = model.basis(_x)
+                    zpred = torch.zeros_like(_z)
+
+                    if cuda:
+                        zpred = zpred.cuda()
+                    for kk in model.basis.order[:k]:
+                        zpred[:, kk] = _z[:, kk]
+
+                    _yh = model.surface(zpred)
+
+                    tmp = _yh.__class__(
+                        _yh.mean,
+                        likelihood._shaped_noise_covar(
+                            _yh.mean.shape, noise=_n.reshape(-1)
+                        )
+                        + _yh.covariance_matrix,
+                    )
+
+                    norm = torch.distributions.Normal(
+                        _yh.mean.view(-1, D), torch.sqrt(tmp.variance.view(-1, D))
+                    )
+
+                    # sample the ELBO
+                    samp[:, r] = norm.log_prob(_y).detach().view(-1, D).sum(axis=1) - (
+                        klW[:, model.basis.order[:k]].sum()
+                        + kla[model.basis.order[:k]].sum()
+                    ) / len(dataset)
+                    # samp[:, :, r] = (_y - _yh.mean) ** 2
+
+                # _lp = norm.log_prob(_y).detach()
+                # _lp = _lp.view(-1, D)
+                _lp = torch.mean(samp, dim=1)
+
+                elbo[i : len(_y) + i, k] = _lp
+                elbos[i : len(_y) + i, k] = torch.std(samp, dim=1)
+
+        i += len(_x)
+
+    # prep for returning
+    lp = elbo.cpu().numpy()
+    lps = elbos.cpu().numpy()
+
+    ret = {}
+    for k in range(K + 1):
+        ret[f"elbo-k{k}"] = lp[:, k]
+        ret[f"elbo-k{k}-std"] = lps[:, k]
+
+    return pd.DataFrame(ret)

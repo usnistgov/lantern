@@ -5,21 +5,51 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib import ticker
+from gpytorch.kernels import RBFKernel, MaternKernel, ScaleKernel, RQKernel
 
 from lantern.model import Model
 from lantern.model.basis import VariationalBasis
 from lantern.model.surface import Phenotype
 
 
-def load_run(dataset, phenotype, model, run, K=8):
+def load_run(dataset, phenotype, model, run, K=8, slug="", kernel=""):
     df = pd.read_csv(f"data/processed/{dataset}.csv")
     ds = pickle.load(open(f"data/processed/{dataset}-{phenotype}.pkl", "rb"))
 
+    _kernel = None
+    if kernel != "":
+        D = ds.D
+        # hard-coded if non-rq kernel
+        K = 4
+
+        baseKern = {"rbf": RBFKernel, "matern": MaternKernel, "rq": RQKernel}[
+            kernel.split("-")[-1]
+        ]
+
+        # base component
+        if D > 1:
+            _kernel = baseKern(ard_num_dims=K, batch_shape=torch.Size([D]))
+        else:
+            _kernel = baseKern(ard_num_dims=K)
+        if _kernel.has_lengthscale:
+            _kernel.raw_lengthscale.requires_grad = False
+
+        # scale component
+        if D > 1:
+            _kernel = ScaleKernel(_kernel, batch_shape=torch.Size([D]))
+        else:
+            _kernel = ScaleKernel(_kernel)
+
     # Build model and loss
-    _model = Model(VariationalBasis.fromDataset(ds, K), Phenotype.fromDataset(ds, K),)
+    _model = Model(
+        VariationalBasis.fromDataset(ds, K),
+        Phenotype.fromDataset(ds, K, kernel=_kernel),
+    )
 
     _model.load_state_dict(
-        torch.load(f"experiments/{dataset}-{phenotype}/{model}/{run}/model.pt", "cpu")
+        torch.load(
+            f"experiments/{dataset}-{phenotype}/{model}/{run}{slug}/model.pt", "cpu",
+        )
     )
 
     return df, ds, _model
@@ -99,7 +129,8 @@ def buildLandscape(
     y = (y + offset) * std + mu
 
     # scale to base variance
-    fvar = fvar / ops
+    # fvar = fvar / ops
+    fvar = fvar * (std ** 2)
 
     if log:
         fmu = np.power(10, fmu)
@@ -134,6 +165,7 @@ def plotLandscape(
     levels=8,
     contour_kwargs={},
     varColor=False,
+    showInterval=False,
     cbar_kwargs={},
     fig_kwargs=dict(dpi=200, figsize=(6, 4)),
 ):
@@ -182,6 +214,21 @@ def plotLandscape(
             aspect="auto",
             cmap="Greys",
             interpolation="lanczos",
+        )
+    if showInterval:
+        interval = 4 * np.sqrt(fvar.reshape(Z1.shape))
+        if log:
+            interval = np.power(10, interval)
+        interval_im = ax.imshow(
+            interval,
+            extent=(Z1.min(), Z1.max(), Z2.min(), Z2.max()),
+            origin="lower",
+            aspect="auto",
+            cmap="Greys",
+            interpolation="lanczos",
+            norm=mpl.colors.LogNorm(vmin=interval.min(), vmax=interval.max())
+            if log
+            else None,
         )
 
     im = ax.contour(
@@ -249,10 +296,12 @@ def plotLandscape(
         norm = mpl.colors.Normalize(vmin=vrange[0], vmax=vrange[1])
 
     sm = plt.cm.ScalarMappable(norm=norm, cmap=cs.cmap)
-    sm.set_array([])
+    sm.set_array(np.array([]))
 
     if colorbar:
         cbar = fig.colorbar(sm, ax=ax, **cbar_kwargs)
         cbar.ax.set_ylabel(contour_label)
 
+    if showInterval:
+        return fig, norm, cs.cmap, vrange, interval_im
     return fig, norm, cs.cmap, vrange

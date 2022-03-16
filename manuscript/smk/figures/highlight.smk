@@ -9,6 +9,7 @@ rule gfp_surface_focus:
         "experiments/gfp-brightness/lantern/full/model.pt"
     output:
         "figures/gfp-brightness/brightness/surface-focus.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("gfp", "brightness", "lantern", "full", 8)
         model.eval()
@@ -42,6 +43,66 @@ rule gfp_surface_focus:
 
         plt.savefig(output[0], bbox_inches="tight", transparent=True)
 
+rule gfp_surface_z2:
+    """
+    Slice of z2 for avgfp
+    """
+
+    input:
+        "data/processed/gfp.csv",
+        "data/processed/gfp-brightness.pkl",
+        "experiments/gfp-brightness/lantern/full/model.pt",
+    output:
+        "figures/gfp-brightness/brightness/surface-z2.png"
+    group: "figure"
+    run:
+        df, ds, model = util.load_run("gfp", "brightness", "lantern", "full", 8)
+        model.eval()
+
+        raw = "medianBrightness"
+
+        z1pos = 1.8
+        X, y = ds[: len(ds)]
+        with torch.no_grad():
+            Z = model.basis(X)
+
+            zpred = torch.zeros(100, 8)
+            zpred[:, model.basis.order[1]] = torch.linspace(
+                Z[:, model.basis.order[1]].min(), Z[:, model.basis.order[1]].max()
+            )
+            zpred[:, model.basis.order[0]] = z1pos
+
+            fpred = model.surface(zpred)
+            lo, hi = fpred.confidence_region()
+
+        ys = (Z[:, model.basis.order[0]] > z1pos - 0.3) & (Z[:, model.basis.order[0]] < z1pos + 0.3)
+
+        plt.hist2d(
+            Z[ys, model.basis.order[1]].numpy(),
+            y[ys, 0].numpy() * df[raw].std() + df[raw].mean(),
+            bins=30,
+            norm=mpl.colors.LogNorm(),
+        )
+        plt.plot(
+            zpred[:, model.basis.order[1]].numpy(),
+            fpred.mean * df[raw].std() + df[raw].mean(),
+            lw=3,
+            c="C1",
+            label="f(z)",
+        )
+        plt.fill_between(
+            zpred[:, model.basis.order[1]].numpy(),
+            lo.numpy() * df[raw].std() + df[raw].mean(),
+            hi.numpy() * df[raw].std() + df[raw].mean(),
+            alpha=0.6,
+            color="C1",
+        )
+        plt.xlabel("$z_2$")
+        plt.ylabel("avGFP Brightness")
+        plt.legend()
+        plt.ylim(2.4, 4.1)
+        plt.savefig(output[0], bbox_inches="tight", transparent=True)
+
 rule gfp_surface_bfp1:
     """
     """
@@ -52,6 +113,7 @@ rule gfp_surface_bfp1:
         "experiments/gfp-brightness/lantern/full/model.pt"
     output:
         "figures/gfp-brightness/brightness/surface-bfp1.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("gfp", "brightness", "lantern", "full", 8)
         model.eval()
@@ -124,6 +186,7 @@ rule gfp_surface_bfp2:
         "experiments/gfp-brightness/lantern/full/model.pt"
     output:
         "figures/gfp-brightness/brightness/surface-bfp2.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("gfp", "brightness", "lantern", "full", 8)
         model.eval()
@@ -196,6 +259,7 @@ rule gfp_surface_bfp_all:
         "experiments/gfp-brightness/lantern/full/model.pt"
     output:
         "figures/gfp-brightness/brightness/surface-bfp-all.png"
+    group: "figure"
     run:
         import matplotlib.patches as mpatches
 
@@ -332,6 +396,66 @@ rule gfp_surface_bfp_all:
         plt.savefig(output[0], bbox_inches="tight")
 
 
+rule gfp_effects_cutoff:
+    input:
+        "data/processed/gfp.csv",
+        "data/processed/gfp-brightness.pkl",
+        "experiments/gfp-brightness/lantern/full/model.pt"
+    output:
+        "figures/gfp-brightness/effects-cutoff.png"
+    group: "figure"
+    run:
+        from scipy.stats import norm
+        
+        df, ds, model = util.load_run("gfp", "brightness", "lantern", "full", 8)
+        model.eval()
+
+        qW = norm(
+            model.basis.W_mu[:, model.basis.order[0]].detach().numpy(),
+            model.basis.W_log_sigma[:, model.basis.order[0]].detach().exp().numpy(),
+        )
+
+        lo = qW.ppf(0.025)
+        hi = qW.ppf(0.975)
+        mu = qW.mean()
+
+        # ind = [68, 595, 1108, 1845, 1005, 786, 219, 396]
+        ind = [68, 595, 1108, 219]
+
+        _, ax = plt.subplots(figsize=(4, 2))
+
+        delta = 1.0
+        offset = delta/2
+        for ii, i in enumerate(ind):
+            plt.plot([lo[i], hi[i]], [offset]*2, color=f"C{ii}")
+            plt.scatter([mu[i]], [offset], color=f"C{ii}", label=ds.tokenizer.tokens[i][1:])
+
+            offset += delta
+
+        ax.spines.bottom.set_position("zero")
+        ax.spines.top.set_color("none")
+        ax.spines.left.set_position('zero')
+        ax.spines.right.set_color('none')
+        ax.xaxis.set_ticks_position("bottom")
+
+        ax.set_xlabel("$z_1$")
+        ax.xaxis.set_label_coords(-0.05, -0.025)
+
+        # ax.yaxis.set_ticks_position("left")
+        plt.yticks([])
+        # plt.xticks(range(len(features)), features, rotation=45, horizontalalignment="right")
+
+        # from here: https://www.py4u.net/discuss/139791
+        # plt.setp(ax.get_xticklabels(), transform=ax.get_xaxis_transform())
+
+        plt.grid(True, axis="x", ls="--")
+        fig = plt.gcf()
+        fig.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+
+        plt.tight_layout()
+        plt.savefig(output[0], bbox_inches="tight")
+
+
 rule laci_parametric:
     """
     Parametric plot of LacI allosteric surface
@@ -343,6 +467,7 @@ rule laci_parametric:
         "experiments/laci-joint/lantern/full/model.pt"
     output:
         "figures/laci-joint/parametric.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("laci", "joint", "lantern", "full", 8)
         model.eval()
@@ -507,6 +632,65 @@ rule laci_parametric:
 
         plt.savefig(output[0], bbox_inches="tight")
 
+rule laci_surface_z1:
+    """
+    Slice of z1 for laci
+    """
+
+    input:
+        "data/processed/laci.csv",
+        "data/processed/laci-joint.pkl",
+        "experiments/laci-joint/lantern/full/model.pt",
+    output:
+        "figures/laci-joint/ec50/surface-z1.png"
+    group: "figure"
+    run:
+        df, ds, model = util.load_run("laci", "joint", "lantern", "full", 8)
+        model.eval()
+
+        raw = "ec50-norm"
+
+        z2pos = 0
+        X, y = ds[: len(ds)][:2]
+        with torch.no_grad():
+            Z = model.basis(X)
+
+            zpred = torch.zeros(100, 8)
+            zpred[:, model.basis.order[0]] = torch.linspace(
+                Z[:, model.basis.order[0]].min(), Z[:, model.basis.order[0]].max()
+            )
+            zpred[:, model.basis.order[1]] = z2pos
+
+            fpred = model.surface(zpred)
+            lo, hi = fpred.confidence_region()
+
+        ys = (Z[:, model.basis.order[1]] > z2pos - 0.3) & (Z[:, model.basis.order[1]] < z2pos + 0.3)
+
+        plt.hist2d(
+            Z[ys, model.basis.order[0]].numpy(),
+            y[ys, 0].numpy() * df[raw].std() + df[raw].mean(),
+            bins=30,
+            norm=mpl.colors.LogNorm(),
+        )
+        plt.plot(
+            zpred[:, model.basis.order[0]].numpy(),
+            fpred.mean[:, 0] * df[raw].std() + df[raw].mean(),
+            lw=3,
+            c="C1",
+            label="f(z)",
+        )
+        plt.fill_between(
+            zpred[:, model.basis.order[0]].numpy(),
+            lo[:, 0].numpy() * df[raw].std() + df[raw].mean(),
+            hi[:, 0].numpy() * df[raw].std() + df[raw].mean(),
+            alpha=0.6,
+            color="C1",
+        )
+        plt.xlabel("$z_1$")
+        plt.ylabel(r"LacI $\mathrm{EC}_{50}$")
+        plt.legend()
+        plt.savefig(output[0], bbox_inches="tight", transparent=True)
+
 COVID_BINDING_COLOR = "fuchsia"
 COVID_STABILITY_COLOR = "limegreen"
 
@@ -521,6 +705,7 @@ rule covid_anglehist:
         "experiments/covid-joint/lantern/full/model.pt"
     output:
         "figures/covid-joint/anglehist-highlight.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)
         model.eval()
@@ -633,6 +818,7 @@ rule covid_axes_parametric:
         "experiments/covid-joint/lantern/full/model.pt"
     output:
         "figures/covid-joint/axes-surface.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)
         model.eval()
@@ -741,6 +927,7 @@ rule covid_parametric:
         "experiments/covid-joint/lantern/full/model.pt"
     output:
         "figures/covid-joint/parametric.png"
+    group: "figure"
     run:
         df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)
         model.eval()
@@ -852,6 +1039,7 @@ rule covid_variants:
     output:
         "figures/covid-joint/variants.png",
         "figures/covid-joint/variants_project.png"
+    group: "figure"
     run:
         from cycler import cycler
 
@@ -925,7 +1113,7 @@ rule covid_variants:
         plt.xlim(-0.4, 2.2)
         plt.ylim(-0.2, 2.2)
 
-        colors = ["coral", "cyan", "palegreen"]
+        colors = ["coral", "mediumorchid", "palegreen"]
 
         for i in range(3):
             plt.arrow(
@@ -1085,6 +1273,7 @@ rule covid_axes_surface:
         "figures/covid-joint/axes-binding.png",
         "figures/covid-joint/axes-expression.png",
         # "figures/covid-joint/axes-expression-with-hist.png"
+    group: "figure"
     run:
 
         df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)
@@ -1262,3 +1451,203 @@ rule covid_axes_surface:
 
         # fig.colorbar(im, ax=ax, location="bottom", pad=0.2)
         # plt.savefig(output[2], bbox_inches="tight", transparent=False)
+
+rule covid_bind_surface_zk:
+    """
+    Covid axes surfaces slice
+    """
+
+    input:
+        "data/processed/covid.csv",
+        "data/processed/covid-joint.pkl",
+        "experiments/covid-joint/lantern/full/model.pt"
+    output:
+        "figures/covid-joint/surface-binding-z{k}.png",
+    group: "figure"
+    run:
+
+        df, ds, model = util.load_run("covid", "joint", "lantern", "full", 8)
+        model.eval()
+
+        K = int(wildcards.k) - 1
+
+        X = ds[:len(ds)][0]
+        with torch.no_grad():
+            Z = model.basis(X)
+            Z = Z[:, model.basis.order]
+
+        Zpred = torch.zeros(100, 8)
+
+        rng = Z[:, K].max() - Z[:, K].min()
+        Zpred[:, model.basis.order[K]] = torch.linspace(-3, 3)
+
+        for z1 in [0, -2, -4, -6, -8, -10]:
+            Zpred[:, model.basis.order[0]] = z1
+
+            with torch.no_grad():
+                f = model.surface(Zpred)
+                lo, hi = f.confidence_region()
+
+            plt.plot(
+                Zpred[:, model.basis.order[K]].numpy(),
+                f.mean[:, 1].numpy(),
+                label=f"$z_1$ = {z1}",
+            )
+            plt.fill_between(
+                Zpred[:, model.basis.order[K]].numpy(),
+                lo[:, 1].numpy(),
+                hi[:, 1].numpy(),
+                alpha=0.4,
+            )
+
+        plt.xlabel(f"$z_{K+1}$")
+        plt.ylabel("SARS-CoV-2 binding (normalized)")
+        plt.legend()
+
+        plt.tight_layout()
+        plt.savefig(output[0], bbox_inches="tight", transparent=False)
+
+rule allostery_rotate:
+    input:
+        "data/processed/allostery2.csv",
+        "data/processed/allostery2-joint.pkl",
+        "experiments/allostery2-joint/lantern/full/model.pt"
+    output:
+        "figures/allostery2-joint/ec50/rotation-actual.png",
+        "figures/allostery2-joint/ginf/rotation-actual.png",
+        "figures/allostery2-joint/g0/rotation-actual.png",
+        "figures/allostery2-joint/ec50/rotation-residual.png",
+        "figures/allostery2-joint/ginf/rotation-residual.png",
+        "figures/allostery2-joint/g0/rotation-residual.png",
+    run:
+
+        from src.allostery import ec50, ginf, g0, delta_eps_AI_0, delta_eps_RA_0
+
+        df, ds, model = util.load_run("allostery2", "joint", "lantern", "full", 8,)
+        
+        p1 = np.linspace(df.eps_AI_shift.min(), df.eps_AI_shift.max())
+        p2 = np.linspace(df.eps_RA_shift.min(), df.eps_RA_shift.max())
+
+        # build prediction surface in biophysical space
+        P1, P2 = np.meshgrid(p1, p2)
+        surface = np.concatenate(
+            (P1.reshape((2500, 1)), P2.reshape((2500, 1))),
+            axis=1
+        )
+
+        # how to go from biophysical to learned space
+        with torch.no_grad():
+            _X = ds[:len(ds)][0]
+            X = model.basis(_X).numpy()
+
+        y1 = df.eps_AI_shift.values
+        y2 = df.eps_RA_shift.values
+
+        y = df[
+            ["eps_AI_shift", "eps_RA_shift"]
+        ].values
+
+        V, _, _, _ = np.linalg.lstsq(y, X - X.mean(axis=0), rcond=None)
+
+        # setup prediction
+        d0, d1 = model.basis.order[:2]
+
+        Zpred = torch.zeros(2500, 8)
+
+        # make latent values from linear relationship
+        tmp = np.dot(surface, V) + X.mean(axis=0)
+        # Zpred[:, d0] = torch.from_numpy(tmp[:, 0])
+        # Zpred[:, d1] = torch.from_numpy(tmp[:, 1])
+        Zpred[:, d0] = torch.from_numpy(tmp[:, d0])
+        Zpred[:, d1] = torch.from_numpy(tmp[:, d1])
+
+        with torch.no_grad():
+            fpred = model.surface(Zpred)
+
+        # scale to make visible
+        Vn = 50*V
+
+        for i, (fxn, label) in enumerate(
+            [
+                (ec50, r"$\mathrm{EC}_{50}$"),
+                (ginf, r"$\mathrm{G}_{\infty}$"),
+                (g0, r"$\mathrm{G}_{0}$"),
+            ]
+        ):
+
+            # Rotated view
+
+            param = np.log10(
+                fxn(
+                    delta_eps_AI=surface[:, 0] + delta_eps_AI_0,
+                    delta_eps_RA=surface[:, 1] + delta_eps_RA_0,
+                )
+            ).reshape(50, 50)
+
+            pred = fpred.mean[:, i].numpy().reshape((50, 50))
+
+            fig = plt.figure(figsize=(3, 2.5), dpi=300)
+            im = plt.imshow(
+                param,
+                aspect="auto",
+                interpolation="lanczos",
+                extent=(P1.min(), P1.max(), P2.min(), P2.max()),
+                origin="lower",
+                vmin=min(param.min(), pred.min()),
+                vmax=max(param.max(), pred.max()),
+            )
+            plt.contour(
+                P1,
+                P2,
+                pred,
+                vmin=min(param.min(), pred.min()),
+                vmax=max(param.max(), pred.max()),
+            )
+
+            plt.arrow(0, 0, Vn[0, d0], Vn[1, d0], width=0.2, zorder=100)
+            plt.text(Vn[0, d0], 0.8 * Vn[1, d0], "$z_1$", color="k")
+
+            plt.arrow(0, 0, Vn[0, d1], Vn[1, d1], width=0.2, zorder=100)
+            plt.text(Vn[0, d1] * 1.5, 0.6 * Vn[1, d1], "$z_2$", color="k")
+
+            plt.xlabel("$\Delta \epsilon_{AI}$")
+            plt.ylabel("$\Delta \epsilon_{RA}$")
+            fig.colorbar(im)
+            plt.title(label)
+
+            plt.tight_layout()
+            plt.savefig(output[i], bbox_inches="tight", transparent=False)
+
+            # Residual view
+            fig, ax = plt.subplots(figsize=(4, 2), dpi=300)
+            _, _, _, im = plt.hist2d(y1, y2, bins=30, norm=mpl.colors.LogNorm(), cmap="Greens")
+
+            resid = (pred - param) ** 2
+            cim = plt.contour(
+                P1,
+                P2,
+                resid,
+                levels=10,
+                cmap="plasma"
+            )
+
+            norm = mpl.colors.Normalize(vmin=resid.min(), vmax=resid.max())
+            sm = plt.cm.ScalarMappable(norm=norm, cmap=cim.cmap)
+            sm.set_array([])
+            fig.colorbar(sm, pad=0.24, aspect=5)
+            fig.axes[-1].set_title("residual", ha="left", loc="left")
+
+            plt.arrow(0, 0, Vn[0, d0], Vn[1, d0], width=0.2, zorder=100)
+            plt.text(Vn[0, d0], 0.8 * Vn[1, d0], "$z_1$", color="k")
+
+            plt.arrow(0, 0, Vn[0, d1], Vn[1, d1], width=0.2, zorder=100)
+            plt.text(Vn[0, d1] * 1.5, 0.6 * Vn[1, d1], "$z_2$", color="k")
+
+            plt.xlabel("$\Delta \epsilon_{AI}$")
+            plt.ylabel("$\Delta \epsilon_{RA}$")
+            fig.colorbar(im, pad=0.05, aspect=5)
+            fig.axes[-1].set_title("observation\ncount", ha="left", loc="left")
+
+            ax.set_facecolor("Grey")
+
+            plt.savefig(output[i+3], bbox_inches="tight", transparent=False)

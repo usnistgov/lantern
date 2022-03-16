@@ -58,6 +58,9 @@ rule lin_cv:
     output:
         "experiments/{ds}-{phenotype}/linear/cv{cv,\d+}/model.pt"
     group: "linear"
+    resources:
+        gres="gpu:1",
+        partition="batch",
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -145,6 +148,9 @@ rule lin_prediction:
     output:
         "experiments/{ds}-{phenotype}/linear/cv{cv,\d+}/pred-val.csv"
     group: "linear"
+    resources:
+        gres="gpu:1",
+        partition="batch",
     run:
         import pickle
 
@@ -152,7 +158,7 @@ rule lin_prediction:
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
         
-        CUDA = dsget("linear/prediction/cuda", default=True)
+        CUDA = dsget("linear/prediction/cuda", default=False)
 
         # Load the dataset
         df = pd.read_csv(input[0])
@@ -196,6 +202,9 @@ rule lin_cv_size:
     output:
         "experiments/{ds}-{phenotype}/linear/cv{cv,\d+}-n{n}/model.pt",
     group: "linear"
+    resources:
+        gres="gpu:1",
+        partition="batch",
     run:
         def dsget(pth, default):
             """Get the configuration for the specific dataset"""
@@ -289,6 +298,9 @@ rule lin_prediction_size:
     output:
         "experiments/{ds}-{phenotype}/linear/cv{cv,\d+}-n{n}/pred-val.csv"
     group: "linear"
+    resources:
+        gres="gpu:1",
+        partition="batch",
     run:
         import pickle
 
@@ -296,7 +308,7 @@ rule lin_prediction_size:
             """Get the configuration for the specific dataset"""
             return get(config, f"{wildcards.ds}/{pth}", default=default)
         
-        CUDA = dsget("linear/prediction/cuda", default=True)
+        CUDA = dsget("linear/prediction/cuda", default=False)
 
         # Load the dataset
         df = pd.read_csv(input[0])

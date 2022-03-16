@@ -1,0 +1,18 @@
+name: lantern
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - pip
+  - pip:
+    - snakemake==6.9.1
+    - tqdm==4.60.0
+    - dpath==2.0.1
+    - mlflow==1.15.0
+    - dms-variants==0.8.6
+    - plotnine==0.8.0
+    - tables==3.6.1
+    - sliced==0.7.0
+    - seaborn==0.11.2
+    - epistasis==0.7.5
+    - "git+git://github.com/usnistgov/lantern.git@dfe6d0190dd17330147abd139208a51f89794be0"
