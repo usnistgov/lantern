@@ -81,7 +81,7 @@ for each variant against the wild-type (see :meth:`~lantern.dataset.Dataset.from
 Building a LANTERN model
 ========================
 
-A LANTERN model is composed of two key elements:
+A LANTERN model is composed of three key elements:
 
 1. A :class:`~lantern.model.basis.Basis` that performs a linear
    transformation of a one-hot encoded mutational vector to a
@@ -89,21 +89,29 @@ A LANTERN model is composed of two key elements:
 2. A :class:`~lantern.model.surface.Surface` that models the
    non-linear relationship between the latent mutational effect space
    and the observed phenotypes
+3. A :class:`~gpytorch.likelihoods.Likelihood` that determines the
+   random noise associated with each phenotype measurement
 
-Mathematically, this two-step operation can be seen as
+Mathematically, the two-step operation executed by LANTERN to model an
+observed phenotype :math:`y_i` with genotype :math:`x_i` (which is
+one-hot encoded, as described above) is:
 
 .. math:: z_i = W x_i
           :label: eq_basis
-.. math:: y_i = f(z_i)
+.. math:: y_i = f(z_i) + \epsilon_i
           :label: eq_surface
 
 For a basis :math:`W` and non-linear surface :math:`f` to be learned
-from the data. LANTERN provides a python interface for this learning
-problem.
+from the data, and :math:`\epsilon_i` is noise modeled by the
+`Likelihood`. LANTERN provides a python interface for this learning
+problem, in particular approximate Bayesian inference on :math:`W`,
+:math:`f`, and the parameters of the `Likelihood`.
 
 Currently, there is a single interface to both the `Basis` and
-`Surface` elements. There are built-in factory methods for both
-objects using the `Dataset` object we have already created:
+`Surface` elements. Similarly, the only supported `Likelihood`s are the
+univariate and multivariate Gaussian distributions provided by
+`GPyTorch`. There are built-in factory methods for both `Basis` and
+`Surface` using the `Dataset` object we have already created:
 
 >>>  basis = VariationalBasis.fromDataset(ds, K=8, meanEffectsInit=True)
 >>>  surface = Phenotype.fromDataset(ds, K=8)
@@ -125,7 +133,11 @@ increasing this value.
 After creating our `Basis` and `Surface`, we can now create a unified
 :class:`~lantern.model.Model`
 
->>>  model = Model(basis, surface)
+>>>  model = Model(basis, surface, GaussianLikelihood())
+
+If the phenotype is multivariate, then the model should be created as
+
+>>>  model = Model(basis, surface, MultitaskGaussianLikelihood(ds.D))
 
 Training a LANTERN model
 ========================
