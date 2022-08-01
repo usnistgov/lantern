@@ -22,7 +22,7 @@ def test_quickstart():
     # build a LANTERN model based on the dataset, using an upper-bound
     # of K latent dimensions
     model = Model(
-        VariationalBasis.fromDataset(ds, 3), Phenotype.fromDataset(ds, 3, Ni=50)
+        VariationalBasis.fromDataset(ds, 1), Phenotype.fromDataset(ds, 1, Ni=50)
     )
 
     loss = model.loss(N=len(ds))
@@ -35,7 +35,7 @@ def test_quickstart():
     lss = loss(yhat, y)
     baseline = sum(lss.values())
 
-    for i in range(10):
+    for i in range(100):
         optimizer.zero_grad()
         yhat = model(X)
         lss = loss(yhat, y)
