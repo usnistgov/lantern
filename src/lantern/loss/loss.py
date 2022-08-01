@@ -44,7 +44,8 @@ class Composite(Loss):
 
         lss = {}
         for l in self.losses:
-            lss.update(l.loss(yhat, y, noise, *args, **kwargs))
+            d = l.loss(yhat, y, noise, *args, **kwargs)
+            lss.update(d)
 
         # instead of storing this, just do it when it's time to call backward
         # lss["total"] = sum(lss.values())

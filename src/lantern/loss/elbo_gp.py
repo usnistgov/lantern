@@ -1,22 +1,8 @@
 import attr
 import torch
-from torch.nn import functional as F
-from torch.distributions.kl import kl_divergence
-from torch.distributions import Gamma, Normal
-from torch import nn
-from gpytorch.likelihoods import GaussianLikelihood
-from gpytorch.likelihoods import MultitaskGaussianLikelihood
 from gpytorch.mlls import VariationalELBO
 
 from lantern.loss import Term
-
-# hack to allow non-fixed noise for each observation
-class _MultitaskGaussianLikelihood(MultitaskGaussianLikelihood):
-    def _shaped_noise_covar(self, base_shape, noise=None):
-        noise_covar = super()._shaped_noise_covar(base_shape)
-        if noise is not None:
-            return noise_covar.add_diag(noise)
-        return noise_covar
 
 
 @attr.s(eq=False)
@@ -26,27 +12,29 @@ class ELBO_GP(Term):
     """
 
     mll = attr.ib(repr=False)
-    raw_sigma_hoc = attr.ib(repr=False)
 
     def loss(self, yhat, y, noise=None, *args, **kwargs) -> dict:
+        shape = yhat.mean.shape
+        y = y.reshape(*shape)
 
         if noise is not None:
-            # fix 1d obseravation, probably needs to be fixed longer tem
-            if noise.shape[1] == 1:
-                noise = noise[:, 0]
-                y = y.reshape(*yhat.mean.shape)
+            noise = noise.reshape(*shape)
 
-            if self.raw_sigma_hoc is not None:
-                noise = noise + F.softplus(self.raw_sigma_hoc)
+        if y.isnan().any():
+            # in order to support D>1, need to make selection with mask on yhat work
+            if yhat.mean.ndim > 1:
+                raise ValueError("No support for masking with D>1")
 
-            # fix for adding to diag
-            if self.mll.model.D > 1:
-                noise = noise.reshape(noise.shape[0] * noise.shape[1])
+            mask = ~y.isnan()
+            imask = torch.where(mask)
 
-            # note: noise is variance
-            ll, kl, log_prior = self.mll(yhat, y, noise=noise)
-        else:
-            ll, kl, log_prior = self.mll(yhat, y.reshape(*yhat.mean.shape))
+            y = y[mask]
+            yhat = yhat.__getitem__(imask)
+
+            if noise is not None:
+                noise = noise[mask]
+
+        ll, kl, log_prior = self.mll(yhat, y, noise=noise, **kwargs)
 
         return {
             "neg-loglikelihood": -ll,
@@ -55,21 +43,9 @@ class ELBO_GP(Term):
         }
 
     @classmethod
-    def fromGP(
-        cls,
-        gp,
-        N,
-        likelihood=None,
-        objective=VariationalELBO,
-        sigma_hoc=False,
-        sigma_hoc_offset=0,
+    def fromModel(
+        cls, model, N, objective=VariationalELBO,
     ):
-        if likelihood is None:
-            likelihood = GaussianLikelihood()
-            if gp.D > 1:
-                likelihood = _MultitaskGaussianLikelihood(num_tasks=gp.D)
-
         return cls(
-            objective(likelihood, gp, num_data=N, combine_terms=False),
-            nn.Parameter(torch.randn(gp.D) + sigma_hoc_offset) if sigma_hoc else None,
+            objective(model.likelihood, model.surface, num_data=N, combine_terms=False),
         )

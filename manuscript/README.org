@@ -18,7 +18,7 @@
 * Pipeline
   Everything in the analysis is managed with [[https://snakemake.readthedocs.io/en/stable/index.html][snakemake]], which greatly
   simplifies re-creating the workflow. Below outlines the steps
-<<<<<<< HEAD
+  <<<<<<< HEAD
   required to reproduce the full analysis. 
 
   The outputs of this pipeline is largely divided into these categories:

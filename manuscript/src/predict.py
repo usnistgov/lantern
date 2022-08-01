@@ -9,6 +9,8 @@ import pandas as pd
 # from src.analyze.grad import gradient, laplacian
 # from src.model import LatentLinearGPBayes
 
+from lantern.model import Model
+
 
 def predictions(
     D,
@@ -84,8 +86,8 @@ def predictions(
                     _z = _z[0]
 
             if diffops:
-                _grad = gradient(model.landscape, _z, z0)
-                _lapl = laplacian(model.landscape, _z, z0, dims=dims)
+                grad = gradient(model.landscape, _z, z0)
+                lapl = laplacian(model.landscape, _z, z0, dims=dims)
 
             if uncertainty:
                 Nsamp = 50

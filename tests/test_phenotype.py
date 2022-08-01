@@ -44,20 +44,6 @@ def test_multid():
     assert not phen.kernel.base_kernel.lengthscale.requires_grad
 
 
-def test_loss():
-
-    phen = Phenotype.build(1, 10, Ni=100)
-    loss = phen.loss(N=1000)
-    assert type(loss) == ELBO_GP
-
-    mvn = phen(torch.randn(50, 10))
-
-    lss = loss(mvn, torch.randn(50))
-    assert "neg-loglikelihood" in lss
-    assert "neg-log-gp-prior" in lss
-    assert "gp-kl" in lss
-
-
 def test_ds_construct_1d():
 
     df = pd.DataFrame(
