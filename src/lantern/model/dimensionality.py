@@ -1,7 +1,6 @@
 from torch.utils.data import DataLoader
 import numpy as np
 import torch
-from tqdm import tqdm
 import pandas as pd
 from scipy.stats import ks_2samp as ks2
 import attr
@@ -128,7 +127,15 @@ def _logprob_scan(
 
     # loop over data and generate predictions
     i = 0
-    loop = tqdm(loader) if pbar else loader
+    loop = loader
+    if pbar:
+        try:
+            from tqdm import tqdm
+            loop = tqdm(loader)
+        except:
+            # TODO add actual logging
+            print("TQDM not installed, no progress bar")
+
     for btch in loop:
         _x, _y = btch[:2]
         if _y.ndim == 1:
