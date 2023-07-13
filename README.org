@@ -34,17 +34,17 @@
 ** Install dependencies
    Before installing ~lantern~, install the python dependencies. It is recommended to install inside a [[https://docs.python.org/3/tutorial/venv.html][virtual environment]]. The example code below uses conda.
    #+begin_src bash
-	 conda create --name lantern_env python==3.11
-	 conda activate lantern_env
+     conda create --name lantern_env python==3.11
+     conda activate lantern_env
    #+end_src
    Then install pytorch using the appropriate install command for your system (See: https://pytorch.org/get-started/locally/). In this example, for a Linux or Windows environment with CPU only:
-   +begin_src bash
-	 conda install pytorch torchvision torchaudio cpuonly -c pytorch
+   #+begin_src bash
+     conda install pytorch torchvision torchaudio cpuonly -c pytorch
    #+end_src
    Then install the other required python packages:
-   +begin_src bash
-	 conda install -c conda-forge gpytorch scikit-learn cattrs
-	 conda install pyyaml seaborn ipykernel matplotlib numpy pandas
+   #+begin_src bash
+     conda install -c conda-forge gpytorch scikit-learn cattrs
+     conda install pyyaml seaborn ipykernel matplotlib numpy pandas
    #+end_src
    Then install ~lantern~
   
@@ -59,7 +59,14 @@
    #+begin_src bash
      git clone https://github.com/usnistgov/lantern.git
      cd lantern
+   #+end_src
+  Then either:
+   #+begin_src bash
      python setup.py install
+   #+end_src
+  Or:
+   #+begin_src bash
+     pip install -e .
    #+end_src
    In either case, it is recommended to install inside a [[https://docs.python.org/3/tutorial/venv.html][virtual environment]].
 
