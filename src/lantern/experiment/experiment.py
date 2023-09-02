@@ -1,10 +1,13 @@
 import attr
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+
 import torch
 
 from lantern.dataset.dataset import Dataset
 from lantern.model.model import Model
+
 
 
 @attr.s()
@@ -64,3 +67,42 @@ class Experiment:
             df_return[f'z_{i+1}'] = z
         
         return df_return
+    
+    
+    def dim_variance_plot(self, ax=None, include_total=False, figsize=[4, 4], **kwargs):
+        # Plots the variance for each of the dimensions in the latent space - used to identify which dimonesions are "importaant"
+    
+        model = self.model
+
+        mean = 1 / model.basis.qalpha(detach=True).mean[model.basis.order]
+        z_dims = [n + 1 for n in range(len(mean))]
+        
+        if ax is None:
+            plt.rcParams["figure.figsize"] = figsize
+            fig, ax = plt.subplots()
+        
+        ax_twin = ax.twiny()
+        
+        ax_twin.plot(z_dims, mean, "-o")
+
+        ax_twin.set_xlabel("Z dimension")
+        ax_twin.set_xticks(z_dims)
+        ax_twin.set_ylabel("variance")
+
+        mn = min(mean.min(), 1e-4)
+        mx = mean.max()
+        z = torch.logspace(np.log10(mn), np.log10(mx), 100)
+        ax.plot(
+            invgammalogpdf(z, torch.tensor(0.001), torch.tensor(0.001)).exp().numpy(),
+            z.numpy(),
+            c="k",
+            zorder=0,
+        )
+        ax.set_xlabel("prior probability")
+
+        ax.set_yscale('log')
+
+
+def invgammalogpdf(x, alpha, beta):
+    return alpha * beta.log() - torch.lgamma(alpha) + (-alpha - 1) * x.log() - beta / x
+
