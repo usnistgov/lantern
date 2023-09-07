@@ -26,6 +26,7 @@ class Experiment:
         #     default is to use the variants in dataset
         if mutations_list is None:
             sub_col = dataset.substitutions
+            # in case the substitutions entry for the WT variants is marked as np.nan (it should be an empty string)
             mutations_list = list(dataset.df[sub_col].replace(np.nan, ""))
             
             if max_variants is not None:
@@ -47,7 +48,9 @@ class Experiment:
         Z = model.basis(X)
         
         # Get predicted mean phenotype and variance as a function of Z coordinates
-        f = model.surface(Z)
+        # 
+        # The next line is equivalent to: f = model(X): f = model(X) is equivalent to f = model.forward(X), which is equivalent to f = model.surface(model.basis(X)).
+        f = model.surface(Z) 
         with torch.no_grad():
             fmu = f.mean.numpy()
             fvar = f.variance.numpy()
