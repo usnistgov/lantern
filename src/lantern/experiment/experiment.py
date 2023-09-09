@@ -17,10 +17,19 @@ class Experiment:
     model: Model = attr.ib()
     
     
-    def prediction_table(self, mutations_list=None, max_variants=None):
+    def prediction_table(self, 
+                         mutations_list=None, 
+                         max_variants=None, 
+                         uncertainty_samples=50, 
+                         batch_size=32, 
+                         uncertainty=False,
+                         verbose=False):
     
         dataset = self.dataset
+        tok = dataset.tokenizer
         model = self.model
+        phenotypes = dataset.phenotypes
+        errors = dataset.errors
         
         # Start with list of string representations of the mutations in each variant to predict
         #     default is to use the variants in dataset
@@ -31,30 +40,100 @@ class Experiment:
             
             if max_variants is not None:
                 mutations_list = mutations_list[:max_variants]
+            
+        else:
+            df = pd.DataFrame({'substitutions':mutations_list})
+            for c in list(phenotypes) + list(errors):
+                df[c] = 0
+            dataset = Dataset(df, phenotypes=phenotypes, errors=errors)
         
-        elif type(mutations_list) is not list:
+        if type(mutations_list) is not list:
             mutations_list = list(mutations_list)
+        
+        if batch_size == 0:     
+            # Convert from list of mutation strings to one-hot encoding
+            X = tok.tokenize(*mutations_list)
+            
+            # The tokenize() method returns a 1D tensor if len(mutations_list)==1
+            #     but here, we always want a 2D tensor
+            if len(X.shape) == 1:
+                X = X.unsqueeze(0)
+            
+            # Get Z coordinates (latent space) for each variant
+            Z = model.basis(X)
+            
+            # Get predicted mean phenotype and variance as a function of Z coordinates
+            # 
+            # The next line is equivalent to: f = model(X): f = model(X) is equivalent to f = model.forward(X), which is equivalent to f = model.surface(model.basis(X)).
+            f = model.surface(Z) 
+            with torch.no_grad():
+                Y = f.mean.numpy() # Predicted phenotype values
+                Z = Z.numpy() # latent space coordinates
+        else:
+            Y = [] # Predicted phenotype values
+            Z = [] # latent space coordinates
+            if uncertainty:
+                Yerr = []
+                Zerr = []
                         
-        # Convert from list of mutation strings to one-hot encoding
-        tok = dataset.tokenizer
-        X = tok.tokenize(*mutations_list)
+            mutations_list_list = [mutations_list[pos:pos + batch_size] for pos in range(0, len(mutations_list), batch_size)]
+            
+            j = 0
+            if verbose: print(f'Number of batches: {len(mutations_list_list)}')
+            for mut_list in mutations_list_list:
+                if verbose: print(f'Batch: {j}')
+                # _x is the one-hot encoding for the batch.
+                _x = tok.tokenize(*mut_list)
+                if len(_x.shape) == 1:
+                    _x = _x.unsqueeze(0)
+                
+                _z = model.basis(_x)
+                if isinstance(_z, tuple):
+                    _z = _z[0]
+                
+                _f = model.surface(_z)
+                
+                with torch.no_grad():
+                    _y = _f.mean.numpy()
+                    _z = _z.numpy()
+                    
+                    if uncertainty:
+                        f_tmp = torch.zeros(uncertainty_samples, *_y.shape)
+                        z_tmp = torch.zeros(uncertainty_samples, *_z.shape)
+                        model.train()
+                        for n in range(uncertainty_samples):
+                            z_samp = model.basis(_x)
+                            z_tmp[n, :, :] = z_samp
+                            f_samp = model(_x)
+                            samp = f_samp.sample()
+                            if samp.ndim == 1:
+                                samp = samp[:, None]
+
+                            f_tmp[n, :, :] = samp
+
+                        _yerr = f_tmp.std(axis=0)
+                        _zerr = z_tmp.std(axis=0)
+
+                        model.eval()
+                
+                Y += list(_y)
+                Z += list(_z)
+                if uncertainty:
+                    Yerr += list(_yerr)
+                    Zerr += list(_zerr)
+                
+                j += 1
+            Y = np.array(Y)
+            Z = np.array(Z)
+            if uncertainty:
+                Yerr = np.array(Yerr)
+                Zerr = np.array(Zerr)
+            
+        # Fix ordering of Z dimensions from most to least important
+        Z = Z[:, model.basis.order]
+        if uncertainty:
+            Zerr = Zerr[:, model.basis.order]
         
-        # The tokenize() method returns a 1D tensor if len(mutations_list)==1
-        #     but here, we always want a 2D tensor
-        if len(X.shape) == 1:
-            X = X.unsqueeze(0)
-        
-        # Get Z coordinates (latent space) for each variant
-        Z = model.basis(X)
-        
-        # Get predicted mean phenotype and variance as a function of Z coordinates
-        # 
-        # The next line is equivalent to: f = model(X): f = model(X) is equivalent to f = model.forward(X), which is equivalent to f = model.surface(model.basis(X)).
-        f = model.surface(Z) 
-        with torch.no_grad():
-            fmu = f.mean.numpy()
-            fvar = f.variance.numpy()
-            Z_arr = Z.numpy()
         
         # Make the datafream to return
         df_return = pd.DataFrame({'substitutions':mutations_list})
@@ -62,12 +141,18 @@ class Experiment:
         # Add predicted phenotype columns
         df_columns = dataset.phenotypes
         df_columns = [x.replace('-norm', '') for x in df_columns]
-        for c, f_c in zip(df_columns, fmu.transpose()):
-            df_return[c] = f_c
+        for c, y in zip(df_columns, Y.transpose()):
+            df_return[c] = y
+        if uncertainty:
+            for c, yerr in zip(df_columns, Yerr.transpose()):
+                df_return[f'{c}_err'] = yerr
             
         # Add columns for Z coordinates
-        for i, z in enumerate(Z_arr.transpose()):
+        for i, z in enumerate(Z.transpose()):
             df_return[f'z_{i+1}'] = z
+        if uncertainty:
+            for i, zerr in enumerate(Zerr.transpose()):
+                df_return[f'z_{i+1}_err'] = zerr
         
         return df_return
     
