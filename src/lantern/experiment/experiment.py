@@ -23,6 +23,9 @@ class Experiment:
                          uncertainty_samples=50, # Number of random draws used to estimate uncertainty of predictions.
                          batch_size=32, # batch size used in calculating predictions and uncertainties. If zero, then the method runs all the predictions in a single batch.
                          uncertainty=False, # Boolean to indicate whether or not to include uncertainties in the output table. If batch_size is zero, this parameter is ignored.
+                         predict_from_z=False, # If true, the method ignores the mutations_list and predicts based on an input set of latent-space (Z) vectors
+                         z_input=None, # Required if predict_from_z is True. Array/list of latent-space (Z) vectors. 
+                         #                   z_input.shape should be N x D, where N is the number of z-vectors to predict and D is the number of dimensions in the latent space.
                          verbose=False): # Whether or not to print extra output.
     
         dataset = self.dataset
@@ -50,7 +53,7 @@ class Experiment:
         if type(mutations_list) is not list:
             mutations_list = list(mutations_list)
         
-        if batch_size == 0:     
+        if (batch_size == 0) or predict_from_z:     
             # Convert from list of mutation strings to one-hot encoding
             X = tok.tokenize(*mutations_list)
             
@@ -59,8 +62,15 @@ class Experiment:
             if len(X.shape) == 1:
                 X = X.unsqueeze(0)
             
-            # Get Z coordinates (latent space) for each variant
-            Z = model.basis(X)
+            if predict_from_z:
+                with torch.no_grad():
+                    Z = torch.Tensor(z_input)
+                z_order = model.basis.order
+                z_re_order = np.array([np.where(z_order==n)[0][0] for n in range(len(z_order))])
+                Z = Z[:, z_re_order]
+            else:
+                # Get Z coordinates (latent space) for each variant
+                Z = model.basis(X)
             
             # Get predicted mean phenotype and variance as a function of Z coordinates
             # 
@@ -68,12 +78,14 @@ class Experiment:
             f = model.surface(Z) 
             with torch.no_grad():
                 Y = f.mean.numpy() # Predicted phenotype values
+                Yerr = np.sqrt(f.variance.numpy())
                 Z = Z.numpy() # latent space coordinates
         else:
             Y = [] # Predicted phenotype values
             Z = [] # latent space coordinates
             if uncertainty:
                 Yerr = []
+                Yerr_0 = []
                 Zerr = []
                         
             mutations_list_list = [mutations_list[pos:pos + batch_size] for pos in range(0, len(mutations_list), batch_size)]
@@ -95,6 +107,7 @@ class Experiment:
                 
                 with torch.no_grad():
                     _y = _f.mean.numpy()
+                    _yerr_0 = np.sqrt(_f.variance.numpy())
                     _z = _z.numpy()
                     
                     if uncertainty:
@@ -110,16 +123,17 @@ class Experiment:
                                 samp = samp[:, None]
 
                             f_tmp[n, :, :] = samp
-
+                        
                         _yerr = f_tmp.std(axis=0)
                         _zerr = z_tmp.std(axis=0)
 
                         model.eval()
-                
+                                
                 Y += list(_y)
                 Z += list(_z)
                 if uncertainty:
                     Yerr += list(_yerr)
+                    Yerr_0 += list(_yerr_0)
                     Zerr += list(_zerr)
                 
                 j += 1
@@ -127,16 +141,21 @@ class Experiment:
             Z = np.array(Z)
             if uncertainty:
                 Yerr = np.array(Yerr)
+                Yerr_0 = np.array(Yerr_0)
                 Zerr = np.array(Zerr)
             
         # Fix ordering of Z dimensions from most to least important
         Z = Z[:, model.basis.order]
-        if uncertainty:
-            Zerr = Zerr[:, model.basis.order]
         
+        if uncertainty and (not predict_from_z) and (batch_size != 0):
+            Zerr = Zerr[:, model.basis.order]
+            Yerr = np.max([Yerr, Yerr_0], axis=0) # make sure the error estimate returned is at least as big as the GP error at fixed Z
         
         # Make the datafream to return
-        df_return = pd.DataFrame({'substitutions':mutations_list})
+        if predict_from_z:
+            df_return = pd.DataFrame({'z1':Z.transpose()[0]})
+        else:
+            df_return = pd.DataFrame({'substitutions':mutations_list})
         
         # Add predicted phenotype columns
         df_columns = dataset.phenotypes
@@ -150,7 +169,7 @@ class Experiment:
         # Add columns for Z coordinates
         for i, z in enumerate(Z.transpose()):
             df_return[f'z_{i+1}'] = z
-        if uncertainty:
+        if uncertainty and not predict_from_z:
             for i, zerr in enumerate(Zerr.transpose()):
                 df_return[f'z_{i+1}_err'] = zerr
         
