@@ -18,12 +18,12 @@ class Experiment:
     
     
     def prediction_table(self, 
-                         mutations_list=None, 
-                         max_variants=None, 
-                         uncertainty_samples=50, 
-                         batch_size=32, 
-                         uncertainty=False,
-                         verbose=False):
+                         mutations_list=None, # input list of substitutions to predict. If None, the full input data for the experiment is used.
+                         max_variants=None, # Only used if mutations_list is None. The max number of input substitutions to predict
+                         uncertainty_samples=50, # Number of random draws used to estimate uncertainty of predictions.
+                         batch_size=32, # batch size used in calculating predictions and uncertainties. If zero, then the method runs all the predictions in a single batch.
+                         uncertainty=False, # Boolean to indicate whether or not to include uncertainties in the output table. If batch_size is zero, this parameter is ignored.
+                         verbose=False): # Whether or not to print extra output.
     
         dataset = self.dataset
         tok = dataset.tokenizer
