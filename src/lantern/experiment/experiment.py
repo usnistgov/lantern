@@ -208,7 +208,42 @@ class Experiment:
         ax.set_xlabel("prior probability")
 
         ax.set_yscale('log')
-
+        
+    def latent_space_plot(self,
+                          df_plot=None, # DataFrame with phenotypes and z-coordinates for the scatterplot. If None, the mutations_list is used to get a prediction_table().
+                          mutations_list=None, # input list of substitutions to predict. If None, the full input data for the experiment is used.
+                          z_dims=[1,2],
+                          phenotype=None,
+                          xlim=None, ylim=None, 
+                          ax=None, 
+                          figsize=[5, 5],
+                          kwargs={},
+                          cbar_kwargs={},
+                          colorbar=True):
+        
+        dataset = self.dataset
+        if df_plot is None:
+            df = self.prediction_table(mutations_list=mutations_list)
+        else:
+            df = df_plot
+        
+        if phenotype is None:
+            phenotype = dataset.phenotypes[0].replace('-norm', '')
+        
+        if ax is None:
+            plt.rcParams["figure.figsize"] = figsize
+            fig, ax = plt.subplots()
+            
+        x = df[f'z_{z_dims[0]}']
+        y = df[f'z_{z_dims[1]}']
+        c = df[phenotype]
+        
+        ax.scatter(x, y, c=c, **kwargs)
+        
+        if colorbar:
+            cbar = fig.colorbar(sm, ax=ax, **cbar_kwargs)
+            cbar.ax.set_ylabel(phenotype)
+    
 
 def invgammalogpdf(x, alpha, beta):
     return alpha * beta.log() - torch.lgamma(alpha) + (-alpha - 1) * x.log() - beta / x
