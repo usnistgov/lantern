@@ -261,7 +261,13 @@ class Experiment:
         ax.set_ylabel(f'$Z_{z_dims[1]}$')
         
         if colorbar:
-            cbar = fig.colorbar(im, ax=ax, **cbar_kwargs)
+            ax_box = ax.get_position()
+            w = ax_box.width/10
+            h = ax_box.height
+            x = ax_box.x1 + w
+            y = ax_box.y0
+            cb_ax = fig.add_axes([x, y, w, h])
+            cbar = fig.colorbar(im, cax=cb_ax, **cbar_kwargs)
             cbar.ax.set_ylabel(phenotype, rotation=270, labelpad=20)
         
         if contours:
