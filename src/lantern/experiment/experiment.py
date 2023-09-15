@@ -2,6 +2,7 @@ import attr
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 import torch
 
@@ -21,7 +22,7 @@ class Experiment:
                          mutations_list=None, # input list of substitutions to predict. If None, the full input data for the experiment is used.
                          max_variants=None, # Only used if mutations_list is None. The max number of input substitutions to predict
                          uncertainty_samples=50, # Number of random draws used to estimate uncertainty of predictions.
-                         batch_size=32, # batch size used in calculating predictions and uncertainties. If zero, then the method runs all the predictions in a single batch.
+                         batch_size=500, # batch size used in calculating predictions and uncertainties. If zero, then the method runs all the predictions in a single batch.
                          uncertainty=False, # Boolean to indicate whether or not to include uncertainties in the output table. If batch_size is zero, this parameter is ignored.
                          predict_from_z=False, # If true, the method ignores the mutations_list and predicts based on an input set of latent-space (Z) vectors
                          z_input=None, # Required if predict_from_z is True. Array/list of latent-space (Z) vectors. 
@@ -219,6 +220,7 @@ class Experiment:
                           figsize=[5, 5],
                           colorbar=True,
                           cbar_kwargs={},
+                          scatter_alpha = 0.2,
                           contours=True,
                           contour_grid_points=100,
                           contour_kwargs={},
@@ -265,14 +267,39 @@ class Experiment:
         if contours:
             xlim = ax.get_xlim()
             ylim = ax.get_ylim()
+            
+            rect = patches.Rectangle((xlim[0], ylim[0]), 
+                                     xlim[1] - xlim[0], 
+                                     ylim[1] - ylim[0], 
+                                     edgecolor='none', 
+                                     facecolor='w', 
+                                     alpha=scatter_alpha)
+            ax.add_patch(rect)
+            
             x_points = np.linspace(*xlim, contour_grid_points)
             y_points = np.linspace(*ylim, contour_grid_points)
             x_points, y_points = np.meshgrid(x_points, y_points)
             
-            # Fill out the rest of the z-vecors with zeros
-            #z_len = len(model.basis.order)
+            # Fill out the rest of the z-vectors with zeros
+            x_flat = x_points.flatten()
+            y_flat = y_points.flatten()
             
-            #return x_points, y_points
+            z_list = np.zeros((len(x_flat), len(self.model.basis.order)))
+            
+            z_list.transpose()[z_dims[0]-1] = x_flat
+            z_list.transpose()[z_dims[1]-1] = y_flat
+            
+            df_flat = self.prediction_table(predict_from_z=True, z_input=z_list, uncertainty=False)
+            
+            p_flat = df_flat[phenotype]
+            p_points = np.split(p_flat, contour_grid_points)
+            
+            if 'cmap' not in contour_kwargs:
+                contour_kwargs['cmap'] = 'viridis'
+            
+            ax.contour(x_points, y_points, p_points, **contour_kwargs)
+            
+            return fig, ax
 
 def invgammalogpdf(x, alpha, beta):
     return alpha * beta.log() - torch.lgamma(alpha) + (-alpha - 1) * x.log() - beta / x
