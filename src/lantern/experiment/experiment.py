@@ -215,11 +215,14 @@ class Experiment:
                           z_dims=[1,2],
                           phenotype=None,
                           xlim=None, ylim=None, 
-                          ax=None, 
+                          fig_ax=None, 
                           figsize=[5, 5],
-                          kwargs={},
+                          colorbar=True,
                           cbar_kwargs={},
-                          colorbar=True):
+                          contours=True,
+                          contour_grid_points=100,
+                          contour_kwargs={},
+                          **kwargs):
         
         dataset = self.dataset
         if df_plot is None:
@@ -230,20 +233,46 @@ class Experiment:
         if phenotype is None:
             phenotype = dataset.phenotypes[0].replace('-norm', '')
         
-        if ax is None:
+        if fig_ax is None:
             plt.rcParams["figure.figsize"] = figsize
             fig, ax = plt.subplots()
+        else:
+            fig, ax = fig_ax
+        
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+            
+        if 'cmap' not in kwargs:
+            kwargs['cmap'] = 'viridis'
+        if 's' not in kwargs:
+            kwargs['s'] = 9
             
         x = df[f'z_{z_dims[0]}']
         y = df[f'z_{z_dims[1]}']
         c = df[phenotype]
         
-        ax.scatter(x, y, c=c, **kwargs)
+        im = ax.scatter(x, y, c=c, **kwargs)
+        
+        ax.set_xlabel(f'$Z_{z_dims[0]}$')
+        ax.set_ylabel(f'$Z_{z_dims[1]}$')
         
         if colorbar:
-            cbar = fig.colorbar(sm, ax=ax, **cbar_kwargs)
-            cbar.ax.set_ylabel(phenotype)
-    
+            cbar = fig.colorbar(im, ax=ax, **cbar_kwargs)
+            cbar.ax.set_ylabel(phenotype, rotation=270, labelpad=20)
+        
+        if contours:
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
+            x_points = np.linspace(*xlim, contour_grid_points)
+            y_points = np.linspace(*ylim, contour_grid_points)
+            x_points, y_points = np.meshgrid(x_points, y_points)
+            
+            # Fill out the rest of the z-vecors with zeros
+            #z_len = len(model.basis.order)
+            
+            #return x_points, y_points
 
 def invgammalogpdf(x, alpha, beta):
     return alpha * beta.log() - torch.lgamma(alpha) + (-alpha - 1) * x.log() - beta / x
