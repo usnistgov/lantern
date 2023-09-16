@@ -214,7 +214,8 @@ class Experiment:
                           df_plot=None, # DataFrame with phenotypes and z-coordinates for the scatterplot. If None, the mutations_list is used to get a prediction_table().
                           mutations_list=None, # input list of substitutions to predict. If None, the full input data for the experiment is used.
                           z_dims=[1,2],
-                          phenotype=None,
+                          phenotype=None, #If not string, then a list of tuples defining linear mixture of phenotypes
+                          phenotype_label=None,
                           xlim=None, ylim=None, 
                           fig_ax=None, 
                           figsize=[4, 4],
@@ -234,7 +235,7 @@ class Experiment:
         
         if phenotype is None:
             phenotype = dataset.phenotypes[0].replace('-norm', '')
-        
+
         if fig_ax is None:
             plt.rcParams["figure.figsize"] = figsize
             fig, ax = plt.subplots()
@@ -253,7 +254,12 @@ class Experiment:
             
         x = df[f'z_{z_dims[0]}']
         y = df[f'z_{z_dims[1]}']
-        c = df[phenotype]
+        if type(phenotype) is str:
+            c = df[phenotype]
+        else:
+            c = phenotype[0][0]*df[phenotype[0][1]].values
+            for p_tup in phenotype[1:]:
+                c += p_tup[0]*df[p_tup[1]]
         
         im = ax.scatter(x, y, c=c, **kwargs)
         
@@ -268,7 +274,9 @@ class Experiment:
             y = ax_box.y0
             cb_ax = fig.add_axes([x, y, w, h])
             cbar = fig.colorbar(im, cax=cb_ax, **cbar_kwargs)
-            cbar.ax.set_ylabel(phenotype, rotation=270, labelpad=20, size=16)
+            if phenotype_label is None:
+                phenotype_label = phenotype
+            cbar.ax.set_ylabel(phenotype_label, rotation=270, labelpad=20, size=16)
         
         if contours:
             xlim = ax.get_xlim()
@@ -297,7 +305,13 @@ class Experiment:
             
             df_flat = self.prediction_table(predict_from_z=True, z_input=z_list, uncertainty=False)
             
-            p_flat = df_flat[phenotype]
+            if type(phenotype) is str:
+                p_flat = df_flat[phenotype]
+            else:
+                p_flat = phenotype[0][0]*df_flat[phenotype[0][1]].values
+                for p_tup in phenotype[1:]:
+                    p_flat += p_tup[0]*df_flat[p_tup[1]]
+                
             p_points = np.split(p_flat, contour_grid_points)
             
             if 'cmap' not in contour_kwargs:
