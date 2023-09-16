@@ -217,10 +217,10 @@ class Experiment:
                           phenotype=None,
                           xlim=None, ylim=None, 
                           fig_ax=None, 
-                          figsize=[5, 5],
+                          figsize=[4, 4],
                           colorbar=True,
                           cbar_kwargs={},
-                          scatter_alpha = 0.2,
+                          scatter_alpha = 0.8,
                           contours=True,
                           contour_grid_points=100,
                           contour_kwargs={},
@@ -262,13 +262,13 @@ class Experiment:
         
         if colorbar:
             ax_box = ax.get_position()
-            w = ax_box.width/10
+            w = ax_box.width/15
             h = ax_box.height
             x = ax_box.x1 + w
             y = ax_box.y0
             cb_ax = fig.add_axes([x, y, w, h])
             cbar = fig.colorbar(im, cax=cb_ax, **cbar_kwargs)
-            cbar.ax.set_ylabel(phenotype, rotation=270, labelpad=20)
+            cbar.ax.set_ylabel(phenotype, rotation=270, labelpad=20, size=16)
         
         if contours:
             xlim = ax.get_xlim()
@@ -279,7 +279,7 @@ class Experiment:
                                      ylim[1] - ylim[0], 
                                      edgecolor='none', 
                                      facecolor='w', 
-                                     alpha=scatter_alpha)
+                                     alpha=(1 - scatter_alpha))
             ax.add_patch(rect)
             
             x_points = np.linspace(*xlim, contour_grid_points)
