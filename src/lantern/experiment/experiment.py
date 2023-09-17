@@ -4,6 +4,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
+from sklearn import metrics
+from scipy import stats
+
 import torch
 
 from lantern.dataset.dataset import Dataset
@@ -216,6 +219,8 @@ class Experiment:
                           z_dims=[1,2],
                           phenotype=None, #If not string, then a list of tuples defining linear mixture of phenotypes
                           phenotype_label=None,
+                          mark_wt=True,
+                          wt_marker='X',
                           xlim=None, ylim=None, 
                           fig_ax=None, 
                           figsize=[4, 4],
@@ -274,6 +279,7 @@ class Experiment:
             y = ax_box.y0
             cb_ax = fig.add_axes([x, y, w, h])
             cbar = fig.colorbar(im, cax=cb_ax, **cbar_kwargs)
+            cbar.solids.set(alpha=1)
             if phenotype_label is None:
                 phenotype_label = phenotype
             cbar.ax.set_ylabel(phenotype_label, rotation=270, labelpad=20, size=16)
@@ -319,8 +325,168 @@ class Experiment:
             
             ax.contour(x_points, y_points, p_points, **contour_kwargs)
             
-            return fig, ax
+        if mark_wt:
+            ax.plot([0], [0], wt_marker, ms=10, c='k', fillstyle='none', zorder=100, markeredgewidth=2)
+        
+        return fig, ax
+        
+        
+    def latent_space_grid_plot(self,
+                               df_plot=None, # DataFrame with phenotypes and z-coordinates for the scatterplot. If None, the mutations_list is used to get a prediction_table().
+                               mutations_list=None, # input list of substitutions to predict. If None, the full input data for the experiment is used.
+                               max_z_dim=4,
+                               phenotype=None, #If not string, then a list of tuples defining linear mixture of phenotypes
+                               phenotype_label=None,
+                               box_size=4,
+                               gridspec_space=0.35,
+                               plot_lims=None):
+        
+        if df_plot is None:
+            df_plot = self.prediction_table(mutations_list=mutations_list)
+        
+        if plot_lims is None:
+            plot_lims = [None]*max_z_dim
+
+        plt.rcParams["figure.figsize"] = [box_size*(max_z_dim-1), box_size*(max_z_dim-1)]
+
+        fig, axs_grid = plt.subplots(max_z_dim-1, max_z_dim-1, gridspec_kw={'wspace':gridspec_space, 'hspace':gridspec_space})
+
+        for i, axs_col in enumerate(axs_grid.transpose()):
+            for j, ax in enumerate(axs_col):
+                if i > j:
+                    ax.set_axis_off()
+                else:
+                    colorbar = ax is axs_grid[0,0]
+                    self.latent_space_plot(phenotype=phenotype, z_dims=[i+1, j+2], xlim=plot_lims[i], ylim=plot_lims[j+1], 
+                                           df_plot=df_plot, fig_ax=(fig, ax), colorbar=colorbar, phenotype_label=phenotype_label);
+        
+        return fig, axs_grid;
+    
+    
+    def prediction_accuracy_plot(self,
+                                 phenotype,
+                                 mutations_list=None,
+                                 df_pred=None,
+                                 df_exp=None,
+                                 fig_ax=None,
+                                 figsize=[4, 4],
+                                 max_points=100000,
+                                 alpha=0.03,
+                                 colorbar=True,
+                                 cbar_kwargs={},
+                                 color_by_err='experiment'):
+        
+        if mutations_list is None:
+            sub_col = self.dataset.substitutions
+            # in case the substitutions entry for the WT variants is marked as np.nan (it should be an empty string)
+            mutations_list = list(self.dataset.df[sub_col].replace(np.nan, ""))
+        
+        if df_pred is None:
+            df_pred = self.prediction_table(mutations_list=mutations_list)
+        #else:
+        #    test_arr = [sub in mutations_list for sub in df_pred[self.dataset.substitutions]]
+        #    if not np.all(test_arr):
+        #        raise ValueError('All mutations in mutations_list are not in df_pred')
+        
+        if df_exp is None:
+            df_exp = self.dataset.df
+        #test_arr = [sub in mutations_list for sub in df_exp[self.dataset.substitutions]]
+        #if not np.all(test_arr):
+        #    raise ValueError('All mutations in mutations_list are not in Experiment.dataset.df')
+        
+        if list(df_exp.substitutions) == list(df_pred.substitutions):
+            df_x = df_exp
+            df_y = df_pred
+        else:
+            print('Calculating matching rows for mutation_list')
+            exp_ind_list = []
+            pred_ind_list = []
+            for mut in mutations_list:
+                df = df_exp
+                df = df[df.substitutions==mut]
+                exp_ind_list.append(df.index[0])
+                
+                df = df_pred
+                df = df[df.substitutions==mut]
+                pred_ind_list.append(df.index[0])
+                
+            df_x = df_exp.loc[exp_ind_list]
+            df_y = df_pred.loc[pred_ind_list]
+        
+        if fig_ax is None:
+            plt.rcParams["figure.figsize"] = figsize
+            fig, ax = plt.subplots()
+            
+        x = df_x[phenotype]
+        xerr = np.sqrt(df_x[f'{phenotype}_var']).values
+        y = df_y[phenotype]
+        yerr = df_y[f'{phenotype}_err'].values
+        
+        err = np.sqrt(xerr**2 + yerr**2)
+        
+        rms = weighted_rms_residual(df_x[phenotype], df_y[phenotype], yerr=yerr, xerr=xerr)
+        r2_score = metrics.r2_score(x, y, sample_weight=1/(yerr**2 + xerr**2))
+        spearmanr = stats.spearmanr(x, y).statistic
+        title = f'{phenotype};\nR2: {r2_score:.2f}; Spearman: {spearmanr:.2f};\nRMS resid: {rms:.2f}, {10**rms:.2f}-fold'
+        fig.suptitle(title, y=0.9, size=16, va='bottom')
+        
+        if len(df_x) > max_points:
+            rng = np.random.default_rng()
+            rnd_sel = rng.integers(0, len(df_x), size=max_points)
+            x = df_x[phenotype].iloc[rnd_sel]
+            y = df_y[phenotype].iloc[rnd_sel]
+            yerr = df_y[f'{phenotype}_err'].iloc[rnd_sel].values
+            xerr = np.sqrt(df_x[f'{phenotype}_var']).iloc[rnd_sel].values
+            err = np.sqrt(xerr**2 + yerr**2)
+            
+        if color_by_err == 'combined':
+            c = err
+        elif color_by_err == 'experiment':
+            c = xerr
+        elif color_by_err == 'LANTERN':
+            c = yerr
+        im = ax.scatter(x, y, c=c, cmap='YlOrBr_r', alpha=alpha)
+        
+        ylim = ax.get_ylim()
+        ax.plot(ylim, ylim, '--k');
+        ax.set_xlabel(f'{phenotype}, experiment', size=14)
+        ax.set_ylabel(f'{phenotype}, LANTERN', size=14)
+        
+        if colorbar:
+            ax_box = ax.get_position()
+            w = ax_box.width/15
+            h = ax_box.height
+            x = ax_box.x1 + w
+            y = ax_box.y0
+            cb_ax = fig.add_axes([x, y, w, h])
+            cbar = fig.colorbar(im, cax=cb_ax, **cbar_kwargs)
+            cbar.solids.set(alpha=1)
+            cbar.ax.set_ylabel(f'{color_by_err} error', rotation=270, labelpad=20, size=14)
+        
+        return fig, ax
+    
 
 def invgammalogpdf(x, alpha, beta):
     return alpha * beta.log() - torch.lgamma(alpha) + (-alpha - 1) * x.log() - beta / x
 
+def weighted_rms_residual(x, y, yerr=None, xerr=None):
+    x = np.array(x)
+    y = np.array(y)
+    
+    if (yerr is None) and (xerr is None):
+        w = 1
+    elif yerr is None:
+        xerr = np.array(xerr)
+        w = 1/xerr**2
+    elif xerr is None:
+        yerr = np.array(yerr)
+        w = 1/yerr**2
+    else:
+        xerr = np.array(xerr)
+        yerr = np.array(yerr)
+        w = 1/(xerr**2 + yerr**2)
+    
+    resid = y - x
+    rms = np.sqrt(np.average(resid**2, weights=w))
+    
+    return rms
