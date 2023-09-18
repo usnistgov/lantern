@@ -351,6 +351,10 @@ class Experiment:
         plt.rcParams["figure.figsize"] = [box_size*(max_z_dim-1), box_size*(max_z_dim-1)]
 
         fig, axs_grid = plt.subplots(max_z_dim-1, max_z_dim-1, gridspec_kw={'wspace':gridspec_space, 'hspace':gridspec_space})
+        ax_box = axs_grid.flatten()[0].get_position()
+        y = ax_box.y1 + ax_box.height/20
+        x = ax_box.x0 + ax_box.width/2
+        fig.suptitle(phenotype_label, size=20, x=x, y=y, va='bottom', ha='left')
 
         for i, axs_col in enumerate(axs_grid.transpose()):
             for j, ax in enumerate(axs_col):
