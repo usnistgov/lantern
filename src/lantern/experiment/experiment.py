@@ -376,7 +376,8 @@ class Experiment:
                                  alpha=0.03,
                                  colorbar=True,
                                  cbar_kwargs={},
-                                 color_by_err='experiment'):
+                                 color_by_err='experiment',
+                                 sort_by_err=True):
         
         if mutations_list is None:
             sub_col = self.dataset.substitutions
@@ -422,12 +423,17 @@ class Experiment:
         x = df_x[phenotype]
         xerr = np.sqrt(df_x[f'{phenotype}_var']).values
         y = df_y[phenotype]
-        yerr = df_y[f'{phenotype}_err'].values
+        if color_by_err != 'experiment':
+            # Don't need yerr if only using experimental errors for colormap
+            yerr = df_y[f'{phenotype}_err'].values
+            err = np.sqrt(xerr**2 + yerr**2)
+            
+            rms = weighted_rms_residual(df_x[phenotype], df_y[phenotype], yerr=yerr, xerr=xerr)
+            r2_score = metrics.r2_score(x, y, sample_weight=1/(yerr**2 + xerr**2))
+        else:
+            rms = weighted_rms_residual(df_x[phenotype], df_y[phenotype], yerr=None, xerr=xerr)
+            r2_score = metrics.r2_score(x, y, sample_weight=1/(xerr**2))
         
-        err = np.sqrt(xerr**2 + yerr**2)
-        
-        rms = weighted_rms_residual(df_x[phenotype], df_y[phenotype], yerr=yerr, xerr=xerr)
-        r2_score = metrics.r2_score(x, y, sample_weight=1/(yerr**2 + xerr**2))
         spearmanr = stats.spearmanr(x, y).statistic
         title = f'{phenotype};\nR2: {r2_score:.2f}; Spearman: {spearmanr:.2f};\nRMS resid: {rms:.2f}, {10**rms:.2f}-fold'
         fig.suptitle(title, y=0.9, size=16, va='bottom')
@@ -437,9 +443,10 @@ class Experiment:
             rnd_sel = rng.integers(0, len(df_x), size=max_points)
             x = df_x[phenotype].iloc[rnd_sel]
             y = df_y[phenotype].iloc[rnd_sel]
-            yerr = df_y[f'{phenotype}_err'].iloc[rnd_sel].values
             xerr = np.sqrt(df_x[f'{phenotype}_var']).iloc[rnd_sel].values
-            err = np.sqrt(xerr**2 + yerr**2)
+            if color_by_err != 'experiment':
+                yerr = df_y[f'{phenotype}_err'].iloc[rnd_sel].values
+                err = np.sqrt(xerr**2 + yerr**2)
             
         if color_by_err == 'combined':
             c = err
@@ -447,6 +454,14 @@ class Experiment:
             c = xerr
         elif color_by_err == 'LANTERN':
             c = yerr
+            
+        if sort_by_err:
+            df_plot = pd.DataFrame({'x':x, 'y':y, 'c':c})
+            df_plot.sort_values(by='c', ascending=False, inplace=True)
+            x = df_plot.x
+            y = df_plot.y
+            c = df_plot.c
+            
         im = ax.scatter(x, y, c=c, cmap='YlOrBr_r', alpha=alpha)
         
         ylim = ax.get_ylim()
