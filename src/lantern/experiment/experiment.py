@@ -347,6 +347,9 @@ class Experiment:
         
         if plot_lims is None:
             plot_lims = [None]*max_z_dim
+            
+        if phenotype_label is None:
+            phenotype_label = phenotype
 
         plt.rcParams["figure.figsize"] = [box_size*(max_z_dim-1), box_size*(max_z_dim-1)]
 
