@@ -339,7 +339,8 @@ class Experiment:
                                phenotype_label=None,
                                box_size=4,
                                gridspec_space=0.35,
-                               plot_lims=None):
+                               plot_lims=None,
+                               **kwargs):
         
         if df_plot is None:
             df_plot = self.prediction_table(mutations_list=mutations_list)
@@ -358,7 +359,8 @@ class Experiment:
                 else:
                     colorbar = ax is axs_grid[0,0]
                     self.latent_space_plot(phenotype=phenotype, z_dims=[i+1, j+2], xlim=plot_lims[i], ylim=plot_lims[j+1], 
-                                           df_plot=df_plot, fig_ax=(fig, ax), colorbar=colorbar, phenotype_label=phenotype_label);
+                                           df_plot=df_plot, fig_ax=(fig, ax), colorbar=colorbar, phenotype_label=phenotype_label,
+                                           **kwargs);
         
         return fig, axs_grid;
     
