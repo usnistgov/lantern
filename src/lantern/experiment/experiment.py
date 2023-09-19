@@ -458,9 +458,9 @@ class Experiment:
             plt.rcParams["figure.figsize"] = figsize
             fig, ax = plt.subplots()
             
-        x = df_x[phenotype]
+        x = df_x[phenotype].values
         xerr = np.sqrt(df_x[f'{phenotype}_var']).values
-        y = df_y[phenotype]
+        y = df_y[phenotype].values
         if color_by_err != 'experiment':
             # Don't need yerr if only using experimental errors for colormap
             yerr = df_y[f'{phenotype}_err'].values
@@ -479,8 +479,8 @@ class Experiment:
         if len(df_x) > max_points:
             rng = np.random.default_rng()
             rnd_sel = rng.integers(0, len(df_x), size=max_points)
-            x = df_x[phenotype].iloc[rnd_sel]
-            y = df_y[phenotype].iloc[rnd_sel]
+            x = df_x[phenotype].iloc[rnd_sel].values
+            y = df_y[phenotype].iloc[rnd_sel].values
             xerr = np.sqrt(df_x[f'{phenotype}_var']).iloc[rnd_sel].values
             if color_by_err != 'experiment':
                 yerr = df_y[f'{phenotype}_err'].iloc[rnd_sel].values
