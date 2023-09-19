@@ -291,10 +291,10 @@ class Experiment:
             cerr = np.sqrt(df_c[f'{phenotype}_var'])
         else:
             c = phenotype[0][0]*df_c[phenotype[0][1]].values
-            cvar = phenotype[0][0]*df_c[f'{phenotype[0][1]}_var'].values
+            cvar = np.abs(phenotype[0][0])*df_c[f'{phenotype[0][1]}_var'].values
             for p_tup in phenotype[1:]:
                 c += p_tup[0]*df_c[p_tup[1]]
-                cvar += p_tup[0]*df_c[f'{p_tup[1]}_var']
+                cvar += np.abs(p_tup[0])*df_c[f'{p_tup[1]}_var']
             cerr = np.sqrt(cvar)
         
         if sort_by_err:
