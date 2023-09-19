@@ -214,7 +214,8 @@ class Experiment:
         ax.set_yscale('log')
         
     def latent_space_plot(self,
-                          df_plot=None, # DataFrame with phenotypes and z-coordinates for the scatterplot. If None, the mutations_list is used to get a prediction_table().
+                          df_pred=None, # DataFrame with phenotypes and z-coordinates for the scatterplot. If None, the mutations_list is used to get a prediction_table().
+                          df_exp=None,
                           mutations_list=None, # input list of substitutions to predict. If None, the full input data for the experiment is used.
                           z_dims=[1,2],
                           phenotype=None, #If not string, then a list of tuples defining linear mixture of phenotypes
@@ -224,19 +225,45 @@ class Experiment:
                           xlim=None, ylim=None, 
                           fig_ax=None, 
                           figsize=[4, 4],
+                          sort_by_err=True,
                           colorbar=True,
                           cbar_kwargs={},
-                          scatter_alpha = 0.8,
+                          scatter_alpha=0.8,
                           contours=True,
                           contour_grid_points=100,
                           contour_kwargs={},
                           **kwargs):
         
         dataset = self.dataset
-        if df_plot is None:
-            df = self.prediction_table(mutations_list=mutations_list)
+        if df_pred is None:
+            df_pred = self.prediction_table(mutations_list=mutations_list)
         else:
-            df = df_plot
+            df = df_pred
+            
+        if df_exp is None:
+            df_exp = self.dataset.df
+        #test_arr = [sub in mutations_list for sub in df_exp[self.dataset.substitutions]]
+        #if not np.all(test_arr):
+        #    raise ValueError('All mutations in mutations_list are not in Experiment.dataset.df')
+        
+        if list(df_exp.substitutions) == list(df_pred.substitutions):
+            df_c = df_exp
+            df_z = df_pred
+        else:
+            print('Calculating matching rows for mutation_list')
+            exp_ind_list = []
+            pred_ind_list = []
+            for mut in mutations_list:
+                df = df_exp
+                df = df[df.substitutions==mut]
+                exp_ind_list.append(df.index[0])
+                
+                df = df_pred
+                df = df[df.substitutions==mut]
+                pred_ind_list.append(df.index[0])
+                
+            df_c = df_exp.loc[exp_ind_list]
+            df_z = df_pred.loc[pred_ind_list]
         
         if phenotype is None:
             phenotype = dataset.phenotypes[0].replace('-norm', '')
@@ -257,15 +284,26 @@ class Experiment:
         if 's' not in kwargs:
             kwargs['s'] = 9
             
-        x = df[f'z_{z_dims[0]}']
-        y = df[f'z_{z_dims[1]}']
+        x = df_z[f'z_{z_dims[0]}']
+        y = df_z[f'z_{z_dims[1]}']
         if type(phenotype) is str:
-            c = df[phenotype]
+            c = df_c[phenotype]
+            cerr = np.sqrt(df_c[f'{phenotype}_var'])
         else:
-            c = phenotype[0][0]*df[phenotype[0][1]].values
+            c = phenotype[0][0]*df_c[phenotype[0][1]].values
+            cvar = phenotype[0][0]*df_c[f'{phenotype[0][1]}_var'].values
             for p_tup in phenotype[1:]:
-                c += p_tup[0]*df[p_tup[1]]
+                c += p_tup[0]*df_c[p_tup[1]]
+                cvar += p_tup[0]*df_c[f'{p_tup[1]}_var']
+            cerr = np.sqrt(cvar)
         
+        if sort_by_err:
+            df_plot = pd.DataFrame({'x':x, 'y':y, 'c':c, 'cerr':cerr})
+            df_plot.sort_values(by='cerr', ascending=False, inplace=True)
+            x = df_plot.x
+            y = df_plot.y
+            c = df_plot.c
+            
         im = ax.scatter(x, y, c=c, **kwargs)
         
         ax.set_xlabel(f'$Z_{z_dims[0]}$')
@@ -332,7 +370,7 @@ class Experiment:
         
         
     def latent_space_grid_plot(self,
-                               df_plot=None, # DataFrame with phenotypes and z-coordinates for the scatterplot. If None, the mutations_list is used to get a prediction_table().
+                               df_pred=None, # DataFrame with phenotypes and z-coordinates for the scatterplot. If None, the mutations_list is used to get a prediction_table().
                                mutations_list=None, # input list of substitutions to predict. If None, the full input data for the experiment is used.
                                max_z_dim=4,
                                phenotype=None, #If not string, then a list of tuples defining linear mixture of phenotypes
@@ -342,8 +380,8 @@ class Experiment:
                                plot_lims=None,
                                **kwargs):
         
-        if df_plot is None:
-            df_plot = self.prediction_table(mutations_list=mutations_list)
+        if df_pred is None:
+            df_pred = self.prediction_table(mutations_list=mutations_list)
         
         if plot_lims is None:
             plot_lims = [None]*max_z_dim
@@ -366,7 +404,7 @@ class Experiment:
                 else:
                     colorbar = ax is axs_grid[0,0]
                     self.latent_space_plot(phenotype=phenotype, z_dims=[i+1, j+2], xlim=plot_lims[i], ylim=plot_lims[j+1], 
-                                           df_plot=df_plot, fig_ax=(fig, ax), colorbar=colorbar, phenotype_label=phenotype_label,
+                                           df_pred=df_pred, fig_ax=(fig, ax), colorbar=colorbar, phenotype_label=phenotype_label,
                                            **kwargs);
         
         return fig, axs_grid;
