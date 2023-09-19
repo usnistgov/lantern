@@ -431,16 +431,9 @@ class Experiment:
         
         if df_pred is None:
             df_pred = self.prediction_table(mutations_list=mutations_list)
-        #else:
-        #    test_arr = [sub in mutations_list for sub in df_pred[self.dataset.substitutions]]
-        #    if not np.all(test_arr):
-        #        raise ValueError('All mutations in mutations_list are not in df_pred')
         
         if df_exp is None:
             df_exp = self.dataset.df
-        #test_arr = [sub in mutations_list for sub in df_exp[self.dataset.substitutions]]
-        #if not np.all(test_arr):
-        #    raise ValueError('All mutations in mutations_list are not in Experiment.dataset.df')
         
         if list(df_exp.substitutions) == list(df_pred.substitutions):
             df_x = df_exp
