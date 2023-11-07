@@ -50,8 +50,11 @@ class Experiment:
             
         else:
             df = pd.DataFrame({'substitutions':mutations_list})
-            for c in list(phenotypes) + list(errors):
+            for c in list(phenotypes):
                 df[c] = 0
+            if errors is not None:
+                for c in list(errors):
+                    df[c] = 0
             dataset = Dataset(df, phenotypes=phenotypes, errors=errors)
         
         if type(mutations_list) is not list:
