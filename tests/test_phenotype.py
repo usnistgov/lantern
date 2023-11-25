@@ -9,10 +9,18 @@ from lantern.model.surface import Phenotype
 from lantern.loss import ELBO_GP
 from lantern.dataset import Dataset
 
+df = pd.DataFrame({'substitutions':['A', 'B', 'A:B'], 'phen_0':[1,2,3], 'phen_0_var':[1,1,1]})
+ds_single = Dataset(df, phenotypes = ['phen_0'], errors = ['phen_0_var'])
+
+df_m = df.cop()
+df_m['phen_1'] = [2,4,6]
+df_m['phen_1_var'] = [2,2,2]
+ds_multi = Dataset(df_m, phenotypes = ['phen_0', 'phen_1'], errors = ['phen_0_var', 'phen_1_var'])
+
 
 def test_1d():
 
-    phen = Phenotype.build(1, 10, Ni=100)
+    phen = Phenotype.fromDataset(ds_single, 10, Ni=100)
 
     assert type(phen.variational_strategy) == VariationalStrategy
 
@@ -28,7 +36,7 @@ def test_1d():
 
 def test_multid():
 
-    phen = Phenotype.build(4, 10, Ni=100)
+    phen = Phenotype.fromDataset(ds_multi, 10, Ni=100)
 
     assert type(phen.variational_strategy) == IndependentMultitaskVariationalStrategy
 
