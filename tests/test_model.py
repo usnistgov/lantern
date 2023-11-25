@@ -77,7 +77,7 @@ def test_loss():
 
     X = torch.randn(30, 10)
     yhat = m(X)
-    lss = loss(yhat, torch.randn(30, 4))
+    lss = loss(yhat, torch.randn(30, ds_multi.D))
 
     assert "variational_basis" in lss
     assert "neg-loglikelihood" in lss

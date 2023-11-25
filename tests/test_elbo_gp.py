@@ -88,7 +88,7 @@ def test_sigma_hoc_grad():
     assert m.likelihood.raw_noise.grad is not None
 
     # multi-dim with noise
-    m = Model(vb, Phenotype.fromDataset(ds_multi, K, Ni=100), MultitaskGaussianLikelihood(3))
+    m = Model(vb, Phenotype.fromDataset(ds_multi, K, Ni=100), MultitaskGaussianLikelihood(ds_multi.D))
     elbo = ELBO_GP.fromModel(m, 1000)
 
     yhat = m.surface(torch.randn(100, K))
@@ -100,7 +100,7 @@ def test_sigma_hoc_grad():
     assert m.likelihood.raw_task_noises.grad is not None
 
     # multi-dim without noise
-    m = Model(vb, Phenotype.fromDataset(ds_multi, K, Ni=100), MultitaskGaussianLikelihood(3))
+    m = Model(vb, Phenotype.fromDataset(ds_multi, K, Ni=100), MultitaskGaussianLikelihood(ds_multi.D))
     elbo = ELBO_GP.fromModel(m, 1000)
 
     yhat = m.surface(torch.randn(100, K))

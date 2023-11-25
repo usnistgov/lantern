@@ -42,9 +42,9 @@ def test_multid():
 
     mvn = phen(torch.rand(50, 10))
     assert type(mvn) == MultitaskMultivariateNormal
-    assert mvn.mean.shape == (50, 4)
+    assert mvn.mean.shape == (50, ds_multi.D)
 
-    induc = torch.rand(4, 100, 10)
+    induc = torch.rand(ds_multi.D, 100, 10)
     assert not np.allclose(induc.numpy(), phen._get_induc())
     phen._set_induc(induc.numpy())
     assert np.allclose(induc.numpy(), phen._get_induc())
