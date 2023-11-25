@@ -18,7 +18,7 @@ from lantern.dataset import Dataset
 df = pd.DataFrame({'substitutions':['A', 'B', 'A:B'], 'phen_0':[1,2,3], 'phen_0_var':[1,1,1]})
 ds_single = Dataset(df, phenotypes = ['phen_0'], errors = ['phen_0_var'])
 
-df_m = df.cop()
+df_m = df.copy()
 df_m['phen_1'] = [2,4,6]
 df_m['phen_1_var'] = [2,2,2]
 ds_multi = Dataset(df_m, phenotypes = ['phen_0', 'phen_1'], errors = ['phen_0_var', 'phen_1_var'])
