@@ -10,6 +10,7 @@ import torch
 
 
 from lantern.model.surface import Surface
+from lantern.dataset import Dataset
 
 
 @attr.s(cmp=False)
@@ -29,6 +30,7 @@ class Phenotype(ApproximateGP, Surface):
     """
 
     D: int = attr.ib()
+    dataset: Dataset = attr.ib()
     K: int = attr.ib()
 
     mean: Mean = attr.ib()
@@ -79,12 +81,13 @@ class Phenotype(ApproximateGP, Surface):
         """Build a phenotype surface matching a dataset
         """
 
-        return cls.build(ds.D, *args, **kwargs)
+        return cls.build(ds.D, ds, *args, **kwargs)
 
     @classmethod
     def build(
         cls,
         D,
+        ds,
         K,
         Ni=800,
         inducScale=10,
@@ -157,4 +160,4 @@ class Phenotype(ApproximateGP, Surface):
             else:
                 kernel = ScaleKernel(kernel)
 
-        return cls(D, K, mean, kernel, strat, *args, **kwargs)
+        return cls(D, ds, K, mean, kernel, strat, *args, **kwargs)

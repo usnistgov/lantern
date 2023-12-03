@@ -93,7 +93,8 @@ class _Base(TensorDataset):
         """
 
         X, y = self[: len(self)][:2]
-        sol, _ = torch.lstsq(y, X)
+        lstsq_ret = torch.linalg.lstsq(y, X)
+        sol = lstsq_ret.solution
 
         return sol[: self.p, :]
 

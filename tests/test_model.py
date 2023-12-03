@@ -2,6 +2,7 @@ import pytest
 import torch
 from torch import nn
 from torch.distributions import Gamma
+import pandas as pd
 
 from lantern.model import Model
 from lantern.model.basis import Basis, VariationalBasis
@@ -10,6 +11,17 @@ from lantern.model.likelihood import (
     GaussianLikelihood,
     MultitaskGaussianLikelihood,
 )
+
+
+from lantern.dataset import Dataset
+
+df = pd.DataFrame({'substitutions':['A', 'B', 'A:B'], 'phen_0':[1,2,3], 'phen_0_var':[1,1,1]})
+ds_single = Dataset(df, phenotypes = ['phen_0'], errors = ['phen_0_var'])
+
+df_m = df.copy()
+df_m['phen_1'] = [2,4,6]
+df_m['phen_1_var'] = [2,2,2]
+ds_multi = Dataset(df_m, phenotypes = ['phen_0', 'phen_1'], errors = ['phen_0_var', 'phen_1_var'])
 
 
 def test_model_validator():
@@ -23,7 +35,7 @@ def test_model_validator():
             return 3
 
     with pytest.raises(ValueError):
-        Model(DummyBasis(), Phenotype.build(4, 5,), MultitaskGaussianLikelihood(5))
+        Model(DummyBasis(), Phenotype.fromDataset(ds_multi, 5,), MultitaskGaussianLikelihood(5))
 
 
 def test_forward():
@@ -38,7 +50,7 @@ def test_forward():
         Gamma(0.001, 0.001),
     )
 
-    m = Model(vb, Phenotype.build(4, K, Ni=100), GaussianLikelihood())
+    m = Model(vb, Phenotype.fromDataset(ds_multi, K, Ni=100), GaussianLikelihood())
     m.eval()
 
     X = torch.randn(30, 10)
@@ -52,7 +64,6 @@ def test_loss():
 
     p = 10
     K = 3
-    D = 4
     vb = VariationalBasis(
         nn.Parameter(torch.randn(p, K)),
         nn.Parameter(torch.randn(p, K) - 3),
@@ -61,12 +72,12 @@ def test_loss():
         Gamma(0.001, 0.001),
     )
 
-    m = Model(vb, Phenotype.build(D, 3, Ni=100), MultitaskGaussianLikelihood(D))
+    m = Model(vb, Phenotype.fromDataset(ds_multi, 3, Ni=100), MultitaskGaussianLikelihood(ds_multi.D))
     loss = m.loss(N=1000)
 
     X = torch.randn(30, 10)
     yhat = m(X)
-    lss = loss(yhat, torch.randn(30, 4))
+    lss = loss(yhat, torch.randn(30, ds_multi.D))
 
     assert "variational_basis" in lss
     assert "neg-loglikelihood" in lss

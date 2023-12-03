@@ -50,8 +50,11 @@ class Experiment:
             
         else:
             df = pd.DataFrame({'substitutions':mutations_list})
-            for c in list(phenotypes) + list(errors):
+            for c in list(phenotypes):
                 df[c] = 0
+            if errors is not None:
+                for c in list(errors):
+                    df[c] = 0
             dataset = Dataset(df, phenotypes=phenotypes, errors=errors)
         
         if type(mutations_list) is not list:
@@ -421,6 +424,7 @@ class Experiment:
                                  alpha=0.03,
                                  colorbar=True,
                                  cbar_kwargs={},
+                                 cmap='YlOrBr_r',
                                  color_by_err='experiment',
                                  sort_by_err=True):
         
@@ -500,7 +504,7 @@ class Experiment:
             y = df_plot.y
             c = df_plot.c
             
-        im = ax.scatter(x, y, c=c, cmap='YlOrBr_r', alpha=alpha)
+        im = ax.scatter(x, y, c=c, cmap=cmap, alpha=alpha)
         
         ylim = ax.get_ylim()
         ax.plot(ylim, ylim, '--k');
